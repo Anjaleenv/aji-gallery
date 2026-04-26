@@ -28,11 +28,20 @@ export const metadata = {
     title: "Aji Construction",
     description,
     locale: "en_IN",
+    images: [
+      {
+        url: "/preview.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Aji Construction",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Aji Construction",
     description,
+    images: ["/preview.jpg"],
   },
 };
 

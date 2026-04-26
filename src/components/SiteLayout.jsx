@@ -199,7 +199,11 @@ export function SiteLayout({ children }) {
         <div className="site-header-wrap site-header-wrap--in-bar">
         <nav className="top-nav" aria-label="Main">
           <div className="nav-left">
-            <Link href="/" className="nav-brand">
+            <Link
+              href="/"
+              className="nav-brand"
+              aria-label={t("navBrand")}
+            >
               <span className="nav-brand-logo-wrap" aria-hidden="true">
                 <Image
                   src="/pic1.jpg"
@@ -211,8 +215,24 @@ export function SiteLayout({ children }) {
                   priority
                 />
               </span>
-              <span className="nav-brand-text" suppressHydrationWarning>
-                {t("navBrand")}
+              <span
+                className="nav-brand-text nav-brand-text--marquee"
+                aria-hidden="true"
+                suppressHydrationWarning
+              >
+                <span className="nav-brand-marquee">
+                  <span className="nav-brand-marquee__track">
+                    <span className="nav-brand-marquee__item">
+                      {t("navBrand")}
+                    </span>
+                    <span
+                      className="nav-brand-marquee__item"
+                      aria-hidden="true"
+                    >
+                      {t("navBrand")}
+                    </span>
+                  </span>
+                </span>
               </span>
             </Link>
           </div>

@@ -1,0 +1,148 @@
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+
+const resources = {
+  en: {
+    translation: {
+      navBrand: 'Aji Construction',
+      navTagline: 'Building the Future',
+      navHome: 'Home',
+      navAbout: 'About',
+      navGallery: 'Gallery',
+      navContact: 'Contact',
+      ourProjects: 'Our Projects',
+      projectGallery: 'Project Gallery',
+      galleryIntro: 'A visual record of our latest construction sites and custom builds.',
+      uploadImage: 'Upload Image',
+      noImages: 'No images yet. Start your gallery.',
+      uploadNow: 'Upload Now',
+      deleteImage: 'Delete image',
+      welcome: 'Welcome',
+      homeTitle: 'Building the Future',
+      homeDesc:
+        'We specialize in massive construction projects, from custom residential homes to large-scale commercial buildings. Quality craftsmanship in every brick.',
+      viewOurWork: 'View Our Work',
+      aboutUs: 'About Us',
+      ourFoundation: 'Our Foundation',
+      aboutDesc1:
+        'I am Ajith NV. I am a dedicated Mason with 23 years of experience in the construction industry. I worked on more than 20 site. My work is built on the belief that masonry is more than just stacking stones - it is about creating structures that are both beautiful and permanent.',
+      aboutDesc2:
+        'I specialize in [mention 2-3 things, e.g., natural stone walls, intricate brickwork, and chimney restoration]. Throughout my career, I have focused on precision and structural integrity, ensuring that every joint is perfect and every line is level. Whether I am working on a large-scale commercial site or a custom residential project, I bring the same level of craftsmanship and attention to detail to the job.',
+      aboutProfileHeading: 'The craftsman',
+      aboutProfileName: 'Ajith NV',
+      aboutProfileRole: 'Mason & founder',
+      aboutProfilePhotoAlt: 'Portrait of Ajith NV, mason at Aji Construction',
+      getInTouch: 'Get in Touch',
+      letsBuild: "Let's Build",
+      contactDesc:
+        'Ready to start your next construction project? Reach out to us to discuss plans, estimates, and timelines.',
+      yourName: 'Your Name',
+      emailAddress: 'Email Address',
+      projectDetails: 'Tell us about your project...',
+      sendMessage: 'Send Message',
+      languageLabel: 'Language',
+      languageEnglish: 'English',
+      languageMalayalam: 'Malayalam',
+      languageHindi: 'Hindi'
+    }
+  },
+  ml: {
+    translation: {
+      navBrand: 'അജി കൺസ്ട്രക്ഷൻ',
+      navTagline: 'ഭാവി നിർമ്മിക്കുന്നു',
+      navHome: 'ഹോം',
+      navAbout: 'ഞങ്ങളേക്കുറിച്ച്',
+      navGallery: 'ഗാലറി',
+      navContact: 'ബന്ധപ്പെടുക',
+      ourProjects: 'ഞങ്ങളുടെ പ്രോജക്ടുകൾ',
+      projectGallery: 'പ്രോജക്റ്റ് ഗാലറി',
+      galleryIntro: 'ഞങ്ങളുടെ പുതിയ നിർമാണ സ്ഥലങ്ങളും കസ്റ്റം ബിൽഡുകളും ചിത്രങ്ങളായി.',
+      uploadImage: 'ചിത്രം അപ്ലോഡ് ചെയ്യുക',
+      noImages: 'ഇനിയും ചിത്രങ്ങളില്ല. നിങ്ങളുടെ ഗാലറി ആരംഭിക്കൂ.',
+      uploadNow: 'ഇപ്പോൾ അപ്ലോഡ് ചെയ്യുക',
+      deleteImage: 'ചിത്രം ഇല്ലാതാക്കുക',
+      welcome: 'സ്വാഗതം',
+      homeTitle: 'ഭാവി നിർമ്മിക്കുന്നു',
+      homeDesc:
+        'കസ്റ്റം വീടുകളിൽ നിന്ന് വലിയ കൊമേഴ്ഷ്യൽ കെട്ടിടങ്ങളിലേക്കുള്ള നിർമാണ പദ്ധതികളിൽ ഞങ്ങൾ വിദഗ്ധരാണ്. ഓരോ ഇട്ടിലും ഗുണമേന്മയുള്ള കരകൗശലം.',
+      viewOurWork: 'ഞങ്ങളുടെ പ്രവൃത്തികൾ കാണുക',
+      aboutUs: 'ഞങ്ങളേക്കുറിച്ച്',
+      ourFoundation: 'ഞങ്ങളുടെ അടിസ്ഥാനം',
+      aboutDesc1:
+        'ഞാൻ അജിത് എൻ വി ആണ്. നിർമാണ മേഖലയിൽ 20 വർഷങ്ങളുടെ അനുഭവമുള്ള സമർപ്പിത മേസണാണ് ഞാൻ. ഞാൻ 20-ലധികം സൈറ്റുകളിൽ പ്രവർത്തിച്ചിട്ടുണ്ട്. കല്ലുകൾ നിരത്തുന്നത് മാത്രമല്ല, മനോഹരവും ദീർഘകാലം നിലനിൽക്കുന്നതുമായ നിർമ്മിതികൾ സൃഷ്ടിക്കുന്നതുമാണ് മേസണറി എന്ന് ഞാൻ വിശ്വസിക്കുന്നു.',
+      aboutDesc2:
+        '[mention 2-3 things, e.g., natural stone walls, intricate brickwork, and chimney restoration] പോലുള്ള മേഖലകളിലാണ് എന്റെ പ്രത്യേക ശ്രദ്ധ. എന്റെ മുഴുവൻ കരിയറിലും കൃത്യതക്കും ഘടനാ ദൃഢതയ്ക്കും മുൻഗണന നൽകി, ഓരോ ജോയിന്റും കൃത്യവും ഓരോ ലൈനും നേരായതുമാണെന്ന് ഉറപ്പാക്കിയിട്ടുണ്ട്. വലിയ കൊമർഷ്യൽ സൈറ്റിലായാലും കസ്റ്റം റെസിഡൻഷ്യൽ പ്രോജക്റ്റിലായാലും, ഒരേ നിലവാരത്തിലുള്ള കൈവേലയും വിശദാംശങ്ങളിലേക്കുള്ള ശ്രദ്ധയും ഞാൻ ഓരോ ജോലിയിലും കൊണ്ടുവരുന്നു.',
+      aboutProfileHeading: 'കരകൗശലകാരൻ',
+      aboutProfileName: 'അജിത് എൻ വി',
+      aboutProfileRole: 'മേസൺ, സ്ഥാപകൻ',
+      aboutProfilePhotoAlt: 'അജി കൺസ്ട്രക്ഷനിലെ മേസൺ അജിത് എൻവിയുടെ ഫോട്ടോ',
+      getInTouch: 'ബന്ധപ്പെടൂ',
+      letsBuild: 'നമുക്ക് നിർമ്മിക്കാം',
+      contactDesc:
+        'നിങ്ങളുടെ അടുത്ത നിർമാണ പദ്ധതി ആരംഭിക്കാൻ തയ്യാറാണോ? പ്ലാനുകൾ, വിലക്കണക്ക്, ടൈംലൈൻ എന്നിവ ചർച്ച ചെയ്യാൻ ഞങ്ങളെ സമീപിക്കുക.',
+      yourName: 'നിങ്ങളുടെ പേര്',
+      emailAddress: 'ഇമെയിൽ വിലാസം',
+      projectDetails: 'നിങ്ങളുടെ പ്രോജക്റ്റിനെ കുറിച്ച് പറയൂ...',
+      sendMessage: 'സന്ദേശം അയയ്ക്കുക',
+      languageLabel: 'ഭാഷ',
+      languageEnglish: 'ഇംഗ്ലീഷ്',
+      languageMalayalam: 'മലയാളം',
+      languageHindi: 'ഹിന്ദി'
+    }
+  },
+  hi: {
+    translation: {
+      navBrand: 'अजी कंस्ट्रक्शन',
+      navTagline: 'भविष्य का निर्माण',
+      navHome: 'होम',
+      navAbout: 'हमारे बारे में',
+      navGallery: 'गैलरी',
+      navContact: 'संपर्क करें',
+      ourProjects: 'हमारे प्रोजेक्ट्स',
+      projectGallery: 'प्रोजेक्ट गैलरी',
+      galleryIntro: 'हमारी नवीनतम निर्माण साइटों और कस्टम बिल्ड्स का दृश्य रिकॉर्ड।',
+      uploadImage: 'चित्र अपलोड करें',
+      noImages: 'अभी तक कोई चित्र नहीं। अपनी गैलरी शुरू करें।',
+      uploadNow: 'अभी अपलोड करें',
+      deleteImage: 'चित्र हटाएं',
+      welcome: 'स्वागत है',
+      homeTitle: 'भविष्य का निर्माण',
+      homeDesc:
+        'हम कस्टम रेजिडेंशियल घरों से लेकर बड़े कमर्शियल भवनों तक विशाल निर्माण परियोजनाओं में विशेषज्ञ हैं। हर ईंट में गुणवत्ता वाली कारीगरी।',
+      viewOurWork: 'हमारा काम देखें',
+      aboutUs: 'हमारे बारे में',
+      ourFoundation: 'हमारी नींव',
+      aboutDesc1:
+        'मैं अजित एन वी हूं। मैं निर्माण उद्योग में 20 वर्षों के अनुभव वाला एक समर्पित मिस्त्री हूं। मैंने 20 से अधिक साइट्स पर काम किया है। मेरा मानना है कि मेसनरी सिर्फ पत्थर जमाने का काम नहीं है, बल्कि सुंदर और स्थायी संरचनाएं बनाने की कला है।',
+      aboutDesc2:
+        'मैं [mention 2-3 things, e.g., natural stone walls, intricate brickwork, and chimney restoration] जैसे कार्यों में विशेषज्ञ हूं। अपने पूरे करियर में मैंने सटीकता और संरचनात्मक मजबूती पर ध्यान दिया है, ताकि हर जोड़ सही हो और हर रेखा संतुलित हो। चाहे मैं बड़े कमर्शियल साइट पर काम करूं या कस्टम रेजिडेंशियल प्रोजेक्ट पर, मैं हर काम में एक जैसी कारीगरी और बारीकी लेकर आता हूं।',
+      aboutProfileHeading: 'हमारे कारीगर',
+      aboutProfileName: 'अजित एन वी',
+      aboutProfileRole: 'मिस्त्री व संस्थापक',
+      aboutProfilePhotoAlt: 'अजी कंस्ट्रक्शन के मिस्त्री अजित एन वी का चित्र',
+      getInTouch: 'संपर्क में रहें',
+      letsBuild: 'आइए निर्माण करें',
+      contactDesc:
+        'अपना अगला निर्माण प्रोजेक्ट शुरू करने के लिए तैयार हैं? योजनाओं, लागत और समयसीमा पर चर्चा के लिए हमसे संपर्क करें।',
+      yourName: 'आपका नाम',
+      emailAddress: 'ईमेल पता',
+      projectDetails: 'अपने प्रोजेक्ट के बारे में बताएं...',
+      sendMessage: 'संदेश भेजें',
+      languageLabel: 'भाषा',
+      languageEnglish: 'अंग्रेज़ी',
+      languageMalayalam: 'मलयालम',
+      languageHindi: 'हिंदी'
+    }
+  }
+};
+
+i18n.use(initReactI18next).init({
+  resources,
+  lng: 'en',
+  fallbackLng: 'en',
+  interpolation: {
+    escapeValue: false
+  }
+});
+
+export default i18n;

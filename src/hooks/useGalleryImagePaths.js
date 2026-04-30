@@ -37,6 +37,8 @@ export function useGalleryImagePaths() {
         setConfigured(data.configured !== false);
         if (data.configured === false) {
           setError(null);
+        } else if (data.upstreamUnavailable) {
+          setError("Gallery is temporarily unavailable.");
         }
       } catch (e) {
         if (!cancelled) {

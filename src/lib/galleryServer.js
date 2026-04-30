@@ -98,6 +98,38 @@ export function isGalleryConfigured() {
   return getGalleryConfigState().configured;
 }
 
+/** Errors where Uploadcare’s host cannot be reached (DNS, offline, firewall). */
+const UPLOADCARE_CONNECTIVITY_CODES = new Set([
+  "ENOTFOUND",
+  "ETIMEDOUT",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+  "EAI_AGAIN",
+]);
+
+/**
+ * True when listing/upload likely failed due to network/DNS, not bad keys or API semantics.
+ * @param {unknown} error
+ */
+export function isUploadcareConnectivityError(error) {
+  let e = error;
+  for (let depth = 0; depth < 8 && e && typeof e === "object"; depth++) {
+    const rec = /** @type {Record<string, unknown>} */ (e);
+    const code = rec.code;
+    const errno = rec.errno;
+    if (typeof code === "string" && UPLOADCARE_CONNECTIVITY_CODES.has(code)) {
+      return true;
+    }
+    if (typeof errno === "string" && UPLOADCARE_CONNECTIVITY_CODES.has(errno)) {
+      return true;
+    }
+    e = rec.cause;
+  }
+  return false;
+}
+
 function getAuth() {
   const { publicKey, secretKey } = getKeys();
   return new UploadcareSimpleAuthSchema({ publicKey, secretKey });

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { isGalleryConfigured, listGalleryImages } from "@/lib/galleryServer";
+import {
+  isGalleryConfigured,
+  isUploadcareConnectivityError,
+  listGalleryImages,
+} from "@/lib/galleryServer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +21,13 @@ export async function GET() {
     return NextResponse.json({ images, configured: true });
   } catch (e) {
     console.error("Gallery list error:", e);
+    if (isUploadcareConnectivityError(e)) {
+      return NextResponse.json({
+        images: [],
+        configured: true,
+        upstreamUnavailable: true,
+      });
+    }
     return NextResponse.json(
       { error: "Failed to list gallery" },
       { status: 500 }

@@ -53,6 +53,11 @@ export function AdminClient() {
       } else {
         setUploadcareKeys(null);
       }
+      if (data.upstreamUnavailable) {
+        setListError(
+          "Cannot reach Uploadcare (check internet, DNS, or firewall). The gallery list stays empty until the connection works."
+        );
+      }
     } catch {
       setListError("Could not load the gallery.");
     }
@@ -297,34 +302,84 @@ export function AdminClient() {
                   from the public one).
                 </li>
                 <li>
-                  In the <code>aji-gallery</code> project folder, edit{" "}
-                  <code>.env.local</code> and add a new line:{" "}
-                  <code>UPLOADCARE_SECRET_KEY=</code> then paste the secret
-                  (no spaces).
+                  <strong>On this live site (Vercel):</strong> open{" "}
+                  <a
+                    href="https://vercel.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    vercel.com
+                  </a>{" "}
+                  → your <strong>aji-gallery</strong> project →{" "}
+                  <strong>Settings</strong> → <strong>Environment Variables</strong> →
+                  add <code>UPLOADCARE_SECRET_KEY</code> = your secret, for{" "}
+                  <strong>Production</strong> (and Preview if you use preview
+                  deploys) → <strong>Save</strong> → <strong>Deployments</strong> →
+                  <strong>⋯</strong> on the latest → <strong>Redeploy</strong>.
+                </li>
+                <li>
+                  <strong>On your computer only:</strong> in <code>aji-gallery</code>, edit{" "}
+                  <code>.env.local</code> and add{" "}
+                  <code>UPLOADCARE_SECRET_KEY=</code> then the secret (no spaces).
                 </li>
                 <li>
                   <strong>Stop</strong> the dev server (Ctrl+C) and start again
-                  with <code>npm run dev</code> — environment variables load only
-                  at startup.
+                  with <code>npm run dev</code> — local env loads only at startup.
                 </li>
               </ol>
             </div>
           ) : (
-            <p className="admin-hint">
-              Set <code>UPLOADCARE_PUBLIC_KEY</code> and{" "}
-              <code>UPLOADCARE_SECRET_KEY</code> in <code>aji-gallery/.env.local</code>{" "}
-              (local) or in Vercel → Settings → Environment Variables
-              (production). Create a project in{" "}
-              <a
-                href="https://uploadcare.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Uploadcare
-              </a>{" "}
-              and copy <strong>both</strong> the public and secret API keys, then
-              restart the dev server.
-            </p>
+            <div className="admin-hint">
+              <p>
+                <strong>
+                  <code>.env.local</code> is not used on the deployed site.
+                </strong>{" "}
+                It only exists on your machine and is not sent to Vercel. For{" "}
+                <strong>aji-gallery.vercel.app</strong> or your custom domain, you
+                must set keys in the Vercel dashboard.
+              </p>
+              <ol className="admin-ol">
+                <li>
+                  In{" "}
+                  <a
+                    href="https://app.uploadcare.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    app.uploadcare.com
+                  </a>
+                  , open your project → <strong>API keys</strong> and copy the{" "}
+                  <strong>public key</strong> and <strong>secret key</strong> (two
+                  different values).
+                </li>
+                <li>
+                  In{" "}
+                  <a
+                    href="https://vercel.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    vercel.com
+                  </a>{" "}
+                  → project <strong>aji-gallery</strong> → <strong>Settings</strong> →{" "}
+                  <strong>Environment Variables</strong> → add{" "}
+                  <code>UPLOADCARE_PUBLIC_KEY</code> and{" "}
+                  <code>UPLOADCARE_SECRET_KEY</code> → mark{" "}
+                  <strong>Production</strong> (and <strong>Preview</strong> if
+                  needed) → <strong>Save</strong>.
+                </li>
+                <li>
+                  Open <strong>Deployments</strong> and click <strong>Redeploy</strong> on
+                  the latest production deployment so the server picks up the new
+                  variables.
+                </li>
+                <li>
+                  For local <code>npm run dev</code> only, put the same names and
+                  values in <code>aji-gallery/.env.local</code> and restart the dev
+                  server.
+                </li>
+              </ol>
+            </div>
           )}
         </div>
       )}

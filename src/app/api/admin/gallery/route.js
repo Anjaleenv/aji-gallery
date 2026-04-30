@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import {
   getGalleryConfigState,
   isGalleryConfigured,
+  isUploadcareConnectivityError,
   listGalleryImages,
 } from "@/lib/galleryServer";
 
@@ -38,6 +39,18 @@ export async function GET() {
     return NextResponse.json({ images, configured: true });
   } catch (e) {
     console.error("Admin gallery list error:", e);
+    if (isUploadcareConnectivityError(e)) {
+      const st = getGalleryConfigState();
+      return NextResponse.json({
+        images: [],
+        configured: true,
+        upstreamUnavailable: true,
+        uploadcare: {
+          hasPublicKey: st.hasPublicKey,
+          hasSecretKey: st.hasSecretKey,
+        },
+      });
+    }
     return NextResponse.json(
       { error: "Failed to list gallery" },
       { status: 500 }

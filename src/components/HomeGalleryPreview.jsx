@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { Play } from "lucide-react";
 import { GALLERY_HOME_PREVIEW_COUNT } from "@/data/galleryWorkImages";
 import { useGalleryImagePaths } from "@/hooks/useGalleryImagePaths";
 
@@ -47,22 +48,47 @@ export function HomeGalleryPreview() {
   return (
     <div className="home-gallery-preview">
       <div className="gallery-grid" role="list">
-        {preview.map((item, index) => (
-          <div
-            key={item.publicId}
-            className={itemClassName(index)}
-            role="listitem"
-          >
-            <img
-              src={item.url}
-              alt={t("galleryWorkPhotoAlt", { n: index + 1 })}
-              className="home-gallery-preview-img"
-              loading={index < 2 ? "eager" : "lazy"}
-              decoding="async"
-            />
-          </div>
-        ))}
+        {preview.map((item, index) => {
+          const isVideo = Boolean(
+            item.isVideo ||
+              item.url?.endsWith(".mp4") ||
+              item.url?.endsWith(".webm") ||
+              item.url?.endsWith(".mov")
+          );
+
+          return (
+            <div
+              key={item.publicId}
+              className={itemClassName(index)}
+              role="listitem"
+            >
+              {isVideo ? (
+                <div className="home-gallery-preview-video-wrapper">
+                  <video
+                    src={item.url}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className="home-gallery-preview-img"
+                  />
+                  <div className="gallery-video-badge" aria-hidden="true">
+                    <Play size={18} fill="currentColor" />
+                  </div>
+                </div>
+              ) : (
+                <img
+                  src={item.url}
+                  alt={t("galleryWorkPhotoAlt", { n: index + 1 })}
+                  className="home-gallery-preview-img"
+                  loading={index < 2 ? "eager" : "lazy"}
+                  decoding="async"
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
+

@@ -1,25 +1,49 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { X, ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useGalleryImagePaths } from "@/hooks/useGalleryImagePaths";
 
 export function GalleryView() {
   const { images, loading, error, configured } = useGalleryImagePaths();
-  const [grid, setGrid] = useState([]);
+  const [filter, setFilter] = useState("all");
   const [selectedIndex, setSelectedIndex] = useState(null);
   const { t } = useTranslation();
 
-  useEffect(() => {
-    setGrid(
-      images.map((item, i) => ({
-        id: item.publicId,
-        publicId: item.publicId,
-        url: item.url,
-        workIndex: i,
-      }))
-    );
+  const grid = useMemo(() => {
+    const list = images.map((item, i) => ({
+      id: item.publicId,
+      publicId: item.publicId,
+      url: item.url,
+      workIndex: i,
+      isVideo: Boolean(
+        item.isVideo ||
+          item.url?.endsWith(".mp4") ||
+          item.url?.endsWith(".webm") ||
+          item.url?.endsWith(".mov")
+      ),
+    }));
+
+    if (filter === "photos") return list.filter((i) => !i.isVideo);
+    if (filter === "videos") return list.filter((i) => i.isVideo);
+    return list;
+  }, [images, filter]);
+
+  const counts = useMemo(() => {
+    let photos = 0;
+    let videos = 0;
+    images.forEach((i) => {
+      const isVid = Boolean(
+        i.isVideo ||
+          i.url?.endsWith(".mp4") ||
+          i.url?.endsWith(".webm") ||
+          i.url?.endsWith(".mov")
+      );
+      if (isVid) videos += 1;
+      else photos += 1;
+    });
+    return { all: images.length, photos, videos };
   }, [images]);
 
   const handlePrev = useCallback(
@@ -67,6 +91,47 @@ export function GalleryView() {
         </div>
       </header>
 
+      {counts.videos > 0 && (
+        <div className="gallery-filters" role="tablist" aria-label="Media filter">
+          <button
+            type="button"
+            className={`gallery-filter-btn ${filter === "all" ? "is-active" : ""}`}
+            onClick={() => {
+              setFilter("all");
+              setSelectedIndex(null);
+            }}
+            role="tab"
+            aria-selected={filter === "all"}
+          >
+            {t("filterAll") || "All"} ({counts.all})
+          </button>
+          <button
+            type="button"
+            className={`gallery-filter-btn ${filter === "photos" ? "is-active" : ""}`}
+            onClick={() => {
+              setFilter("photos");
+              setSelectedIndex(null);
+            }}
+            role="tab"
+            aria-selected={filter === "photos"}
+          >
+            {t("filterPhotos") || "Photos"} ({counts.photos})
+          </button>
+          <button
+            type="button"
+            className={`gallery-filter-btn ${filter === "videos" ? "is-active" : ""}`}
+            onClick={() => {
+              setFilter("videos");
+              setSelectedIndex(null);
+            }}
+            role="tab"
+            aria-selected={filter === "videos"}
+          >
+            {t("filterVideos") || "Videos"} ({counts.videos})
+          </button>
+        </div>
+      )}
+
       <main>
         {loading && (
           <div
@@ -112,12 +177,26 @@ export function GalleryView() {
                   onClick={() => setSelectedIndex(index)}
                   style={{ cursor: "pointer" }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element -- dynamic gallery + lightbox src */}
-                  <img
-                    src={image.url}
-                    alt={t("galleryWorkPhotoAlt", { n: image.workIndex + 1 })}
-                    loading="lazy"
-                  />
+                  {image.isVideo ? (
+                    <div className="gallery-video-wrapper">
+                      <video
+                        src={image.url}
+                        preload="metadata"
+                        muted
+                        playsInline
+                      />
+                      <div className="gallery-video-badge" aria-hidden="true">
+                        <Play size={20} fill="currentColor" />
+                      </div>
+                    </div>
+                  ) : (
+                    /* eslint-disable-next-line @next/next/no-img-element -- dynamic gallery + lightbox src */
+                    <img
+                      src={image.url}
+                      alt={t("galleryWorkPhotoAlt", { n: image.workIndex + 1 })}
+                      loading="lazy"
+                    />
+                  )}
                 </div>
               );
             })}
@@ -134,6 +213,7 @@ export function GalleryView() {
             type="button"
             className="lightbox-close"
             onClick={() => setSelectedIndex(null)}
+            aria-label="Close lightbox"
           >
             <X size={32} />
           </button>
@@ -142,6 +222,7 @@ export function GalleryView() {
             type="button"
             className="lightbox-nav lightbox-prev"
             onClick={handlePrev}
+            aria-label="Previous item"
           >
             <ChevronLeft size={48} />
           </button>
@@ -150,18 +231,30 @@ export function GalleryView() {
             className="lightbox-content"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
-              src={grid[selectedIndex].url}
-              alt={t("galleryWorkPhotoAlt", {
-                n: grid[selectedIndex].workIndex + 1,
-              })}
-            />
+            {grid[selectedIndex].isVideo ? (
+              <video
+                key={grid[selectedIndex].url}
+                src={grid[selectedIndex].url}
+                controls
+                autoPlay
+                playsInline
+                className="lightbox-video"
+              />
+            ) : (
+              <img
+                src={grid[selectedIndex].url}
+                alt={t("galleryWorkPhotoAlt", {
+                  n: grid[selectedIndex].workIndex + 1,
+                })}
+              />
+            )}
           </div>
 
           <button
             type="button"
             className="lightbox-nav lightbox-next"
             onClick={handleNext}
+            aria-label="Next item"
           >
             <ChevronRight size={48} />
           </button>
@@ -170,3 +263,4 @@ export function GalleryView() {
     </>
   );
 }
+

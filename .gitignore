@@ -17,10 +17,6 @@
 /.next/
 /out/
 
-# local gallery uploads (keep folder in git)
-/public/gallery/*
-!/public/gallery/.gitkeep
-
 # production
 /build
 

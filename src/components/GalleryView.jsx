@@ -5,6 +5,25 @@ import { X, ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useGalleryImagePaths } from "@/hooks/useGalleryImagePaths";
 
+function checkIsVideo(item) {
+  if (!item) return false;
+  if (item.isVideo === true) return true;
+  const url = String(item.url || "").toLowerCase();
+  const pid = String(item.publicId || item.id || "").toLowerCase();
+  return (
+    url.endsWith(".mp4") ||
+    url.endsWith(".webm") ||
+    url.endsWith(".mov") ||
+    url.includes(".mp4") ||
+    url.includes(".webm") ||
+    url.includes(".mov") ||
+    pid.endsWith(".mp4") ||
+    pid.endsWith(".webm") ||
+    pid.endsWith(".mov") ||
+    Boolean(item.mimeType?.startsWith("video/"))
+  );
+}
+
 export function GalleryView() {
   const { images, loading, error, configured } = useGalleryImagePaths();
   const [filter, setFilter] = useState("all");
@@ -17,12 +36,7 @@ export function GalleryView() {
       publicId: item.publicId,
       url: item.url,
       workIndex: i,
-      isVideo: Boolean(
-        item.isVideo ||
-          item.url?.endsWith(".mp4") ||
-          item.url?.endsWith(".webm") ||
-          item.url?.endsWith(".mov")
-      ),
+      isVideo: checkIsVideo(item),
     }));
 
     if (filter === "photos") return list.filter((i) => !i.isVideo);
@@ -34,13 +48,7 @@ export function GalleryView() {
     let photos = 0;
     let videos = 0;
     images.forEach((i) => {
-      const isVid = Boolean(
-        i.isVideo ||
-          i.url?.endsWith(".mp4") ||
-          i.url?.endsWith(".webm") ||
-          i.url?.endsWith(".mov")
-      );
-      if (isVid) videos += 1;
+      if (checkIsVideo(i)) videos += 1;
       else photos += 1;
     });
     return { all: images.length, photos, videos };

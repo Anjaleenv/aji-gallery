@@ -20,15 +20,17 @@ export async function GET() {
   if (c.get(COOKIE)?.value !== "1") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const st = getGalleryConfigState();
   if (!isGalleryConfigured()) {
-    const st = getGalleryConfigState();
     return NextResponse.json(
       {
         images: [],
         configured: false,
+        publicKey: st.publicKey,
         uploadcare: {
           hasPublicKey: st.hasPublicKey,
           hasSecretKey: st.hasSecretKey,
+          publicKey: st.publicKey,
         },
       },
       { status: 200 }
@@ -36,18 +38,28 @@ export async function GET() {
   }
   try {
     const images = await listGalleryImages();
-    return NextResponse.json({ images, configured: true });
+    return NextResponse.json({
+      images,
+      configured: true,
+      publicKey: st.publicKey,
+      uploadcare: {
+        hasPublicKey: st.hasPublicKey,
+        hasSecretKey: st.hasSecretKey,
+        publicKey: st.publicKey,
+      },
+    });
   } catch (e) {
     console.error("Admin gallery list error:", e);
     if (isUploadcareConnectivityError(e)) {
-      const st = getGalleryConfigState();
       return NextResponse.json({
         images: [],
         configured: true,
         upstreamUnavailable: true,
+        publicKey: st.publicKey,
         uploadcare: {
           hasPublicKey: st.hasPublicKey,
           hasSecretKey: st.hasSecretKey,
+          publicKey: st.publicKey,
         },
       });
     }

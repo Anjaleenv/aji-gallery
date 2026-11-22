@@ -5,6 +5,25 @@ import { Play } from "lucide-react";
 import { GALLERY_HOME_PREVIEW_COUNT } from "@/data/galleryWorkImages";
 import { useGalleryImagePaths } from "@/hooks/useGalleryImagePaths";
 
+function checkIsVideo(item) {
+  if (!item) return false;
+  if (item.isVideo === true) return true;
+  const url = String(item.url || "").toLowerCase();
+  const pid = String(item.publicId || item.id || "").toLowerCase();
+  return (
+    url.endsWith(".mp4") ||
+    url.endsWith(".webm") ||
+    url.endsWith(".mov") ||
+    url.includes(".mp4") ||
+    url.includes(".webm") ||
+    url.includes(".mov") ||
+    pid.endsWith(".mp4") ||
+    pid.endsWith(".webm") ||
+    pid.endsWith(".mov") ||
+    Boolean(item.mimeType?.startsWith("video/"))
+  );
+}
+
 function itemClassName(index) {
   const patternIndex = index % 7;
   let itemClass = "gallery-item home-gallery-preview-item";
@@ -49,12 +68,7 @@ export function HomeGalleryPreview() {
     <div className="home-gallery-preview">
       <div className="gallery-grid" role="list">
         {preview.map((item, index) => {
-          const isVideo = Boolean(
-            item.isVideo ||
-              item.url?.endsWith(".mp4") ||
-              item.url?.endsWith(".webm") ||
-              item.url?.endsWith(".mov")
-          );
+          const isVideo = checkIsVideo(item);
 
           return (
             <div

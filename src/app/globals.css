@@ -1838,6 +1838,27 @@ textarea.contact-input {
   object-fit: cover;
   width: 100%;
   height: 100%;
+  display: block;
+}
+
+.admin-thumb-video-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.admin-thumb-video-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  border-radius: 4px;
+  padding: 3px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .admin-file-meta {

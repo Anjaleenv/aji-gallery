@@ -9,8 +9,33 @@ import {
   Loader2,
   Trash2,
   ImageIcon,
+  Play,
 } from "lucide-react";
 import Image from "next/image";
+import { uploadFile } from "@uploadcare/upload-client";
+
+const ACCEPT_MEDIA =
+  "image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime";
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+
+function isItemVideo(item) {
+  if (!item) return false;
+  if (item.isVideo === true) return true;
+  const url = String(item.url || "").toLowerCase();
+  const pid = String(item.publicId || item.id || "").toLowerCase();
+  return (
+    url.endsWith(".mp4") ||
+    url.endsWith(".webm") ||
+    url.endsWith(".mov") ||
+    url.includes(".mp4") ||
+    url.includes(".webm") ||
+    url.includes(".mov") ||
+    pid.endsWith(".mp4") ||
+    pid.endsWith(".webm") ||
+    pid.endsWith(".mov") ||
+    Boolean(item.mimeType?.startsWith("video/"))
+  );
+}
 
 export function AdminClient() {
   const [checking, setChecking] = useState(true);
@@ -21,6 +46,9 @@ export function AdminClient() {
 
   const [images, setImages] = useState([]);
   const [configured, setConfigured] = useState(true);
+  const [publicKey, setPublicKey] = useState(
+    process.env.NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY || ""
+  );
   /** @type {{ hasPublicKey: boolean, hasSecretKey: boolean } | null} */
   const [uploadcareKeys, setUploadcareKeys] = useState(null);
   const [listError, setListError] = useState("");
@@ -34,10 +62,10 @@ export function AdminClient() {
   const createFileInputRef = useRef(null);
 
   const loadGallery = useCallback(async () => {
-    setListError("");
     try {
       const res = await fetch("/api/admin/gallery", { cache: "no-store" });
       const data = await res.json();
+      setListError("");
       if (res.status === 401) {
         setAuthed(false);
         return;
@@ -45,6 +73,11 @@ export function AdminClient() {
       if (!res.ok) throw new Error(data.error || "Load failed");
       setImages(Array.isArray(data.images) ? data.images : []);
       setConfigured(data.configured !== false);
+      if (data.publicKey) {
+        setPublicKey(data.publicKey);
+      } else if (data.uploadcare?.publicKey) {
+        setPublicKey(data.uploadcare.publicKey);
+      }
       if (data.uploadcare && typeof data.uploadcare === "object") {
         setUploadcareKeys({
           hasPublicKey: Boolean(data.uploadcare.hasPublicKey),
@@ -77,6 +110,7 @@ export function AdminClient() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (authed) void loadGallery();
   }, [authed, loadGallery]);
 
@@ -115,21 +149,82 @@ export function AdminClient() {
   const onUpload = async (fileList) => {
     const file = fileList?.[0];
     if (!file) return;
+    if (createFileInputRef.current) createFileInputRef.current.value = "";
     setUploadMsg("");
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setUploadMsg("File too large (max 50 MB).");
+      return;
+    }
+
+    const isVid =
+      file.type.startsWith("video/") ||
+      /\.(mp4|webm|mov)$/i.test(file.name || "");
+    const isImg =
+      file.type.startsWith("image/") ||
+      /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(file.name || "");
+
+    if (!isVid && !isImg) {
+      setUploadMsg(
+        "Only JPEG, PNG, WebP, GIF, AVIF images and MP4, WebM, MOV videos are allowed."
+      );
+      return;
+    }
+
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
+
     try {
-      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setUploadMsg(data.error || "Upload failed");
-        return;
+      let pubKey = publicKey;
+      if (!pubKey) {
+        const pRes = await fetch("/api/admin/upload", { cache: "no-store" });
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          if (pData.publicKey) {
+            pubKey = pData.publicKey;
+            setPublicKey(pData.publicKey);
+          }
+        }
       }
-      setUploadMsg("Uploaded successfully.");
+
+      if (pubKey) {
+        // Direct browser upload to Uploadcare (bypasses Vercel serverless 4.5 MB request body limit)
+        setUploadMsg(isVid ? "Uploading video to Uploadcare…" : "Uploading image to Uploadcare…");
+        const uploadResult = await uploadFile(file, {
+          publicKey: pubKey,
+          store: true,
+          metadata: { aji_gallery: "1" },
+          fileName: file.name,
+          contentType: file.type || undefined,
+        });
+
+        setUploadMsg("Finalizing upload…");
+        const res = await fetch("/api/admin/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uuid: uploadResult.uuid, name: file.name }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setUploadMsg(data.error || "Upload failed");
+          return;
+        }
+      } else {
+        // Fallback
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setUploadMsg(data.error || "Upload failed");
+          return;
+        }
+      }
+
+      setUploadMsg(isVid ? "Video uploaded successfully." : "Image uploaded successfully.");
       await loadGallery();
-    } catch {
-      setUploadMsg("Upload failed.");
+    } catch (err) {
+      console.error("Upload error:", err);
+      setUploadMsg(err?.message || "Upload failed.");
     } finally {
       setUploading(false);
     }
@@ -174,22 +269,83 @@ export function AdminClient() {
       setReplacingId(null);
       return;
     }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setUploadMsg("File too large (max 50 MB).");
+      setReplacingId(null);
+      return;
+    }
+
+    const isVid =
+      file.type.startsWith("video/") ||
+      /\.(mp4|webm|mov)$/i.test(file.name || "");
+    const isImg =
+      file.type.startsWith("image/") ||
+      /\.(jpg|jpeg|png|webp|gif|avif)$/i.test(file.name || "");
+
+    if (!isVid && !isImg) {
+      setUploadMsg(
+        "Only JPEG, PNG, WebP, GIF, AVIF images and MP4, WebM, MOV videos are allowed."
+      );
+      setReplacingId(null);
+      return;
+    }
+
     setUploading(true);
     setUploadMsg("");
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("publicId", pid);
+
     try {
-      const res = await fetch("/api/admin/image", { method: "PUT", body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setUploadMsg(data.error || "Replace failed");
-        return;
+      let pubKey = publicKey;
+      if (!pubKey) {
+        const pRes = await fetch("/api/admin/upload", { cache: "no-store" });
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          if (pData.publicKey) {
+            pubKey = pData.publicKey;
+            setPublicKey(pData.publicKey);
+          }
+        }
       }
-      setUploadMsg("Image replaced successfully.");
+
+      if (pubKey) {
+        // Direct browser-to-Uploadcare replace
+        setUploadMsg(isVid ? "Uploading replacement video…" : "Uploading replacement image…");
+        const uploadResult = await uploadFile(file, {
+          publicKey: pubKey,
+          store: true,
+          metadata: { aji_gallery: "1" },
+          fileName: file.name,
+          contentType: file.type || undefined,
+        });
+
+        setUploadMsg("Finalizing replacement…");
+        const res = await fetch("/api/admin/image", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uuid: uploadResult.uuid, publicId: pid }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setUploadMsg(data.error || "Replace failed");
+          return;
+        }
+      } else {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("publicId", pid);
+        const res = await fetch("/api/admin/image", { method: "PUT", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setUploadMsg(data.error || "Replace failed");
+          return;
+        }
+      }
+
+      setUploadMsg(isVid ? "Video replaced successfully." : "Image replaced successfully.");
       await loadGallery();
-    } catch {
-      setUploadMsg("Replace failed");
+    } catch (err) {
+      console.error("Replace error:", err);
+      setUploadMsg(err?.message || "Replace failed");
     } finally {
       setUploading(false);
       setReplacingId(null);
@@ -255,7 +411,7 @@ export function AdminClient() {
       <input
         ref={replaceInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+        accept={ACCEPT_MEDIA}
         className="admin-replace-only-input"
         aria-hidden
         tabIndex={-1}
@@ -385,10 +541,11 @@ export function AdminClient() {
       )}
 
       <div className="admin-card admin-card--wide">
-        <h2 className="admin-h2">Add image (create)</h2>
+        <h2 className="admin-h2">Add image or video (create)</h2>
         <p className="admin-hint">
-          Images are uploaded to <strong>Uploadcare</strong> (CDN) and shown on
-          the site. Max 12 MB. JPEG, PNG, WebP, GIF, or AVIF.
+          Media files are uploaded directly to <strong>Uploadcare</strong> (CDN)
+          and shown on the site. Max 50 MB. JPEG, PNG, WebP, GIF, AVIF, or MP4,
+          WebM, MOV video.
         </p>
         <div className="admin-drop">
           <div className="admin-drop-inner">
@@ -400,15 +557,15 @@ export function AdminClient() {
             ) : (
               <span className="admin-drop-prompt" aria-hidden>
                 <Upload size={20} />
-                Choose image
+                Choose image or video
               </span>
             )}
             <input
               ref={createFileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+              accept={ACCEPT_MEDIA}
               className="admin-file-input-overlay"
-              aria-label="Choose an image file to upload to the gallery"
+              aria-label="Choose an image or video file to upload to the gallery"
               disabled={uploading || !configured}
               onChange={(e) => onUpload(e.target.files)}
             />
@@ -436,21 +593,36 @@ export function AdminClient() {
           </p>
         )}
         {!listError && images.length === 0 && configured && (
-          <p className="admin-hint">No images yet. Upload one above.</p>
+          <p className="admin-hint">No images or videos yet. Upload one above.</p>
         )}
         <ul className="admin-file-list">
           {images.map((img) => (
             <li key={img.publicId} className="admin-file-item">
               <div className="admin-thumb">
-                <Image
-                  src={img.url}
-                  alt=""
-                  width={80}
-                  height={80}
-                  className="admin-thumb-img"
-                  sizes="80px"
-                  unoptimized
-                />
+                {isItemVideo(img) ? (
+                  <div className="admin-thumb-video-wrapper">
+                    <video
+                      src={img.url}
+                      className="admin-thumb-img"
+                      muted
+                      playsInline
+                      preload="metadata"
+                    />
+                    <div className="admin-thumb-video-badge" aria-hidden="true">
+                      <Play size={12} fill="currentColor" />
+                    </div>
+                  </div>
+                ) : (
+                  <Image
+                    src={img.url}
+                    alt=""
+                    width={80}
+                    height={80}
+                    className="admin-thumb-img"
+                    sizes="80px"
+                    unoptimized
+                  />
+                )}
               </div>
               <div className="admin-file-meta">
                 <code className="admin-filename">{img.publicId}</code>
@@ -460,7 +632,7 @@ export function AdminClient() {
                     className="admin-action-btn"
                     onClick={() => startReplace(img.publicId)}
                     disabled={!configured || Boolean(uploading)}
-                    title="Replace with a new image (may get a new id)"
+                    title="Replace with a new image or video (may get a new id)"
                   >
                     <ImageIcon size={16} />
                     Replace
@@ -470,7 +642,7 @@ export function AdminClient() {
                     className="admin-action-btn admin-action-btn--danger"
                     onClick={() => onDelete(img.publicId)}
                     disabled={deletingId === img.publicId || !configured}
-                    title="Delete image"
+                    title="Delete item"
                   >
                     {deletingId === img.publicId ? (
                       <Loader2 className="admin-spinner" size={16} />

@@ -5,6 +5,7 @@ import {
   deleteFile,
   fileInfo,
   storeFile,
+  updateMetadata,
   UploadcareSimpleAuthSchema,
 } from "@uploadcare/rest-client";
 
@@ -61,9 +62,11 @@ function trimEnv(name) {
   return t.length > 0 ? t : undefined;
 }
 
-function getPublicKey() {
+export function getPublicKey() {
   return (
-    trimEnv("UPLOADCARE_PUBLIC_KEY") || trimEnv("UPLOADCARE_PUB_KEY")
+    trimEnv("UPLOADCARE_PUBLIC_KEY") ||
+    trimEnv("UPLOADCARE_PUB_KEY") ||
+    trimEnv("NEXT_PUBLIC_UPLOADCARE_PUBLIC_KEY")
   );
 }
 
@@ -83,7 +86,7 @@ function getKeys() {
 }
 
 /**
- * @returns {{ configured: boolean, hasPublicKey: boolean, hasSecretKey: boolean }}
+ * @returns {{ configured: boolean, hasPublicKey: boolean, hasSecretKey: boolean, publicKey: string }}
  */
 export function getGalleryConfigState() {
   const { publicKey, secretKey } = getKeys();
@@ -91,6 +94,7 @@ export function getGalleryConfigState() {
     configured: Boolean(publicKey && secretKey),
     hasPublicKey: Boolean(publicKey),
     hasSecretKey: Boolean(secretKey),
+    publicKey: publicKey || "",
   };
 }
 
@@ -145,6 +149,9 @@ function extFromMime(mimeType) {
   if (mimeType === "image/webp") return ".webp";
   if (mimeType === "image/gif") return ".gif";
   if (mimeType === "image/avif") return ".avif";
+  if (mimeType === "video/mp4") return ".mp4";
+  if (mimeType === "video/webm") return ".webm";
+  if (mimeType === "video/quicktime") return ".mov";
   return ".jpg";
 }
 
@@ -172,17 +179,29 @@ function deliveryUrlFromFile(f) {
   if (typeof u === "string" && u.includes("ucarecdn.com")) {
     return u;
   }
+  const rawFilename = f.originalFilename || "";
+  const nameSuffix = rawFilename ? `${encodeURIComponent(rawFilename)}` : "";
+
   if (typeof u === "string" && u.includes("api.uploadcare.com")) {
     const m = u.match(/files\/([0-9a-f-]{36})/i);
     if (m) {
-      return cdnUrlForUuid(m[1]);
+      return nameSuffix
+        ? `https://ucarecdn.com/${m[1]}/${nameSuffix}`
+        : cdnUrlForUuid(m[1]);
     }
   }
-  return cdnUrlForUuid(f.uuid);
+
+  if (f.uuid) {
+    return nameSuffix
+      ? `https://ucarecdn.com/${f.uuid}/${nameSuffix}`
+      : cdnUrlForUuid(f.uuid);
+  }
+
+  return "";
 }
 
 /**
- * @returns {Promise<{ publicId: string, url: string, width?: number, height?: number, createdAt: string }[]>}
+ * @returns {Promise<{ publicId: string, url: string, width?: number, height?: number, createdAt: string, isVideo?: boolean }[]>}
  */
 export async function listGalleryImages() {
   if (!isGalleryConfigured()) return [];
@@ -201,12 +220,19 @@ export async function listGalleryImages() {
   for await (const page of pages) {
     n += 1;
     for (const f of page.results) {
-      const looksImage =
+      const isVideo =
+        Boolean(f.contentInfo?.video) ||
+        (typeof f.mimeType === "string" && f.mimeType.startsWith("video/")) ||
+        /\.(mp4|webm|mov)$/i.test(f.originalFilename || "") ||
+        /\.(mp4|webm|mov)$/i.test(f.url || "");
+      const looksMedia =
         f.isImage ||
-        (typeof f.mimeType === "string" && f.mimeType.startsWith("image/"));
+        (typeof f.mimeType === "string" &&
+          (f.mimeType.startsWith("image/") || f.mimeType.startsWith("video/"))) ||
+        isVideo;
       if (
         !f.uuid ||
-        !looksImage ||
+        !looksMedia ||
         f.datetimeRemoved != null ||
         !hasGalleryTag(f.metadata)
       ) {
@@ -216,8 +242,8 @@ export async function listGalleryImages() {
       if (f.isReady === false) {
         continue;
       }
-      const w = f.contentInfo?.image?.width;
-      const h = f.contentInfo?.image?.height;
+      const w = f.contentInfo?.image?.width || f.contentInfo?.video?.video?.width;
+      const h = f.contentInfo?.image?.height || f.contentInfo?.video?.video?.height;
       const cdn = deliveryUrlFromFile(f);
       if (!cdn) continue;
       out.push({
@@ -226,6 +252,7 @@ export async function listGalleryImages() {
         width: w,
         height: h,
         createdAt: f.datetimeUploaded,
+        isVideo,
       });
     }
     if (n >= MAX_LIST_PAGES) break;
@@ -259,14 +286,18 @@ async function assertGalleryFile(publicId) {
 /**
  * @param {Buffer} buffer
  * @param {string} [mimeType]
+ * @param {string} [originalName]
  */
-export async function uploadGalleryBuffer(buffer, mimeType) {
+export async function uploadGalleryBuffer(buffer, mimeType, originalName) {
   if (!isGalleryConfigured()) {
     return Promise.reject(new Error("Uploadcare is not configured"));
   }
   const { publicKey } = getKeys();
   const ext = extFromMime(mimeType);
-  const fileName = `image${ext}`;
+  const isVid =
+    (typeof mimeType === "string" && mimeType.startsWith("video/")) ||
+    (originalName && /\.(mp4|webm|mov)$/i.test(originalName));
+  const fileName = originalName || `${isVid ? "video" : "image"}${ext}`;
   const result = await uploadFile(buffer, {
     publicKey: publicKey ?? "",
     fileName,
@@ -299,7 +330,87 @@ export async function uploadGalleryBuffer(buffer, mimeType) {
   return {
     publicId: result.uuid,
     url,
+    isVideo: Boolean(isVid),
   };
+}
+
+/**
+ * Finalizes a direct-to-Uploadcare browser upload:
+ * verifies file exists, ensures metadata and permanent storage.
+ * @param {string} uuid
+ */
+export async function finalizeGalleryUpload(uuid) {
+  if (!isGalleryConfigured()) {
+    throw new Error("Uploadcare is not configured");
+  }
+  if (!isPublicIdInGalleryFolder(uuid)) {
+    throw new Error("Invalid UUID");
+  }
+  const settings = restSettings();
+  const info = await fileInfo({ uuid }, settings);
+
+  if (info.datetimeRemoved != null) {
+    throw new Error("File has been removed");
+  }
+
+  // Ensure file is permanently stored
+  if (!info.datetimeStored) {
+    try {
+      await storeFile({ uuid }, settings);
+    } catch (e) {
+      console.warn("finalize storeFile warning:", e);
+    }
+  }
+
+  // Ensure metadata tag is set
+  if (!hasGalleryTag(info.metadata)) {
+    try {
+      await updateMetadata(
+        { uuid, key: GALLERY_META_KEY, value: "1" },
+        settings
+      );
+    } catch (e) {
+      console.warn("finalize updateMetadata warning:", e);
+    }
+  }
+
+  const isVideo =
+    Boolean(info.contentInfo?.video) ||
+    (typeof info.mimeType === "string" && info.mimeType.startsWith("video/")) ||
+    /\.(mp4|webm|mov)$/i.test(info.originalFilename || "");
+
+  const url = deliveryUrlFromFile(info);
+
+  return {
+    publicId: uuid,
+    url,
+    isVideo,
+    size: info.size,
+    mimeType: info.mimeType,
+  };
+}
+
+/**
+ * Finalizes direct upload and removes the old file.
+ * @param {string} newUuid
+ * @param {string} oldPublicId
+ */
+export async function finalizeReplaceGalleryUpload(newUuid, oldPublicId) {
+  if (!isGalleryConfigured()) {
+    throw new Error("Uploadcare is not configured");
+  }
+  await assertGalleryFile(oldPublicId);
+  const created = await finalizeGalleryUpload(newUuid);
+  try {
+    await deleteFile({ uuid: oldPublicId }, restSettings());
+  } catch (e) {
+    console.error(
+      "Replaced direct upload; old file delete failed:",
+      oldPublicId,
+      e
+    );
+  }
+  return created;
 }
 
 /**
@@ -307,13 +418,14 @@ export async function uploadGalleryBuffer(buffer, mimeType) {
  * @param {Buffer} buffer
  * @param {string} publicId
  * @param {string} [mimeType]
+ * @param {string} [originalName]
  */
-export async function replaceGalleryImage(buffer, publicId, mimeType) {
+export async function replaceGalleryImage(buffer, publicId, mimeType, originalName) {
   if (!isGalleryConfigured()) {
     return Promise.reject(new Error("Uploadcare is not configured"));
   }
   await assertGalleryFile(publicId);
-  const created = await uploadGalleryBuffer(buffer, mimeType);
+  const created = await uploadGalleryBuffer(buffer, mimeType, originalName);
   try {
     await deleteFile({ uuid: publicId }, restSettings());
   } catch (e) {

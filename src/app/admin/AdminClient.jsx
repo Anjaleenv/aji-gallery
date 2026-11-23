@@ -13,9 +13,12 @@ import {
   Eye,
   X,
 } from "lucide-react";
-import Image from "next/image";
 import { uploadFile } from "@uploadcare/upload-client";
-import { getVideoPlaybackUrl, getVideoPosterUrl } from "@/lib/galleryIndex";
+import {
+  getVideoPlaybackUrl,
+  getVideoPosterUrl,
+  normalizeImageUrl,
+} from "@/lib/galleryIndex";
 
 const ACCEPT_MEDIA =
   "image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime";
@@ -636,14 +639,14 @@ export function AdminClient() {
                     </div>
                   </div>
                 ) : (
-                  <Image
-                    src={img.url}
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={normalizeImageUrl(img.url)}
                     alt=""
                     width={80}
                     height={80}
                     className="admin-thumb-img"
-                    sizes="80px"
-                    unoptimized
+                    loading="lazy"
                   />
                 )}
               </div>
@@ -718,6 +721,12 @@ export function AdminClient() {
               {isItemVideo(previewItem) ? (
                 <video
                   key={previewItem.url}
+                  poster={
+                    getVideoPosterUrl(
+                      previewItem.url,
+                      previewItem.publicId
+                    ) || undefined
+                  }
                   controls
                   autoPlay
                   playsInline

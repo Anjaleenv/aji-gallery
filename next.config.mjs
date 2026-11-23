@@ -14,7 +14,27 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.supabase.in",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.supabase.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "ucarecdn.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.ucarecdn.com",
         pathname: "/**",
       },
       {
@@ -23,6 +43,14 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/public/:path*",
+        destination: "/:path*",
+      },
+    ];
   },
 };
 export default nextConfig;

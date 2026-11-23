@@ -290,6 +290,12 @@ export function HomeGalleryPreview() {
                     preview[selectedIndex].url,
                     preview[selectedIndex].publicId
                   )}
+                  poster={
+                    getVideoPosterUrl(
+                      preview[selectedIndex].url,
+                      preview[selectedIndex].publicId
+                    ) || undefined
+                  }
                   controls
                   playsInline
                   autoPlay

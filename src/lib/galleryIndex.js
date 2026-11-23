@@ -52,6 +52,15 @@ export function getVideoPosterUrl(url, publicId) {
     return poster;
   }
 
+  // Supabase storage video poster derivation
+  if (
+    clean.includes("supabase.co") ||
+    clean.includes("supabase.in") ||
+    clean.includes("supabase.com")
+  ) {
+    return clean.replace(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i, ".jpg$2");
+  }
+
   // Uploadcare CDN video poster derivation
   if (clean.includes("ucarecdn.com")) {
     const m = clean.match(/([0-9a-f-]{36})/i);

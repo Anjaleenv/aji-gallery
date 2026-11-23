@@ -304,6 +304,12 @@ export function GalleryView() {
               <div className="lightbox-video-wrapper">
                 <video
                   key={grid[selectedIndex].url}
+                  poster={
+                    getVideoPosterUrl(
+                      grid[selectedIndex].url,
+                      grid[selectedIndex].publicId
+                    ) || undefined
+                  }
                   controls
                   playsInline
                   autoPlay

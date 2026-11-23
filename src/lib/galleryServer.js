@@ -168,33 +168,57 @@ function cdnUrlForUuid(uuid) {
 
 /**
  * Prefer the URL Uploadcare returns; otherwise build ucarecdn from uuid.
+ * Ensures video files always have an extension (e.g. /video.mp4) for HTML5 video playback.
  * @param {import("@uploadcare/rest-client").FileInfo} f
  */
 function deliveryUrlFromFile(f) {
+  const isVideo =
+    Boolean(f.contentInfo?.video) ||
+    (typeof f.mimeType === "string" && f.mimeType.startsWith("video/")) ||
+    /\.(mp4|webm|mov)$/i.test(f.originalFilename || "");
+
+  // Extract uuid
+  let uuid = f.uuid;
+  if (!uuid && typeof f.url === "string") {
+    const m = f.url.match(/([0-9a-f-]{36})/i);
+    if (m) uuid = m[1];
+  }
+  if (!uuid && typeof f.originalFileUrl === "string") {
+    const m = f.originalFileUrl.match(/([0-9a-f-]{36})/i);
+    if (m) uuid = m[1];
+  }
+
+  const rawFilename = f.originalFilename || (isVideo ? "video.mp4" : "");
+  const nameSuffix = rawFilename ? `${encodeURIComponent(rawFilename)}` : "";
+
+  if (uuid) {
+    if (isVideo) {
+      const vName =
+        rawFilename && /\.(mp4|webm|mov)$/i.test(rawFilename)
+          ? encodeURIComponent(rawFilename)
+          : "video.mp4";
+      return `https://ucarecdn.com/${uuid}/${vName}`;
+    }
+    return nameSuffix
+      ? `https://ucarecdn.com/${uuid}/${nameSuffix}`
+      : `https://ucarecdn.com/${uuid}/`;
+  }
+
   const orig = f.originalFileUrl;
   if (typeof orig === "string" && /^https?:\/\//.test(orig)) {
+    if (isVideo && !/\.(mp4|webm|mov)(\?.*)?$/i.test(orig)) {
+      const base = orig.endsWith("/") ? orig : `${orig}/`;
+      return `${base}video.mp4`;
+    }
     return orig;
   }
   const u = f.url;
   if (typeof u === "string" && u.includes("ucarecdn.com")) {
-    return u;
-  }
-  const rawFilename = f.originalFilename || "";
-  const nameSuffix = rawFilename ? `${encodeURIComponent(rawFilename)}` : "";
-
-  if (typeof u === "string" && u.includes("api.uploadcare.com")) {
-    const m = u.match(/files\/([0-9a-f-]{36})/i);
-    if (m) {
-      return nameSuffix
-        ? `https://ucarecdn.com/${m[1]}/${nameSuffix}`
-        : cdnUrlForUuid(m[1]);
+    if (isVideo && !/\.(mp4|webm|mov)(\?.*)?$/i.test(u)) {
+      const base = u.endsWith("/") ? u : `${u}/`;
+      return `${base}video.mp4`;
     }
-  }
-
-  if (f.uuid) {
-    return nameSuffix
-      ? `https://ucarecdn.com/${f.uuid}/${nameSuffix}`
-      : cdnUrlForUuid(f.uuid);
+    return u;
   }
 
   return "";

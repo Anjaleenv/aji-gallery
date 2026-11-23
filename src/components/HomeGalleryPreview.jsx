@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Play } from "lucide-react";
 import { GALLERY_HOME_PREVIEW_COUNT } from "@/data/galleryWorkImages";
 import { useGalleryImagePaths } from "@/hooks/useGalleryImagePaths";
+import { getVideoPlaybackUrl } from "@/lib/galleryIndex";
 
 function checkIsVideo(item) {
   if (!item) return false;
@@ -79,7 +80,7 @@ export function HomeGalleryPreview() {
               {isVideo ? (
                 <div className="home-gallery-preview-video-wrapper">
                   <video
-                    src={item.url}
+                    src={getVideoPlaybackUrl(item.url, item.publicId)}
                     muted
                     playsInline
                     preload="metadata"

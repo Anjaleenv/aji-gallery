@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { X, ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useGalleryImagePaths } from "@/hooks/useGalleryImagePaths";
+import { getVideoPlaybackUrl } from "@/lib/galleryIndex";
 
 function checkIsVideo(item) {
   if (!item) return false;
@@ -31,13 +32,19 @@ export function GalleryView() {
   const { t } = useTranslation();
 
   const grid = useMemo(() => {
-    const list = images.map((item, i) => ({
-      id: item.publicId,
-      publicId: item.publicId,
-      url: item.url,
-      workIndex: i,
-      isVideo: checkIsVideo(item),
-    }));
+    const list = images.map((item, i) => {
+      const isVideo = checkIsVideo(item);
+      const url = isVideo
+        ? getVideoPlaybackUrl(item.url, item.publicId)
+        : item.url;
+      return {
+        id: item.publicId,
+        publicId: item.publicId,
+        url,
+        workIndex: i,
+        isVideo,
+      };
+    });
 
     if (filter === "photos") return list.filter((i) => !i.isVideo);
     if (filter === "videos") return list.filter((i) => i.isVideo);
@@ -240,14 +247,20 @@ export function GalleryView() {
             onClick={(e) => e.stopPropagation()}
           >
             {grid[selectedIndex].isVideo ? (
-              <video
-                key={grid[selectedIndex].url}
-                src={grid[selectedIndex].url}
-                controls
-                autoPlay
-                playsInline
-                className="lightbox-video"
-              />
+              <div className="lightbox-video-wrapper">
+                <video
+                  key={grid[selectedIndex].url}
+                  controls
+                  playsInline
+                  autoPlay
+                  preload="auto"
+                  className="lightbox-video"
+                >
+                  <source src={grid[selectedIndex].url} type="video/mp4" />
+                  <source src={grid[selectedIndex].url} type="video/webm" />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
             ) : (
               <img
                 src={grid[selectedIndex].url}

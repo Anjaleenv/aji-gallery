@@ -10,9 +10,12 @@ import {
   Trash2,
   ImageIcon,
   Play,
+  Eye,
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import { uploadFile } from "@uploadcare/upload-client";
+import { getVideoPlaybackUrl } from "@/lib/galleryIndex";
 
 const ACCEPT_MEDIA =
   "image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime";
@@ -58,6 +61,7 @@ export function AdminClient() {
 
   const [deletingId, setDeletingId] = useState(null);
   const [replacingId, setReplacingId] = useState(null);
+  const [previewItem, setPreviewItem] = useState(null);
   const replaceInputRef = useRef(null);
   const createFileInputRef = useRef(null);
 
@@ -598,11 +602,24 @@ export function AdminClient() {
         <ul className="admin-file-list">
           {images.map((img) => (
             <li key={img.publicId} className="admin-file-item">
-              <div className="admin-thumb">
+              <div
+                className="admin-thumb"
+                onClick={() => setPreviewItem(img)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setPreviewItem(img);
+                  }
+                }}
+                title={isItemVideo(img) ? "Click to play video" : "Click to view image"}
+                style={{ cursor: "pointer" }}
+              >
                 {isItemVideo(img) ? (
                   <div className="admin-thumb-video-wrapper">
                     <video
-                      src={img.url}
+                      src={getVideoPlaybackUrl(img.url, img.publicId)}
                       className="admin-thumb-img"
                       muted
                       playsInline
@@ -627,6 +644,15 @@ export function AdminClient() {
               <div className="admin-file-meta">
                 <code className="admin-filename">{img.publicId}</code>
                 <div className="admin-file-actions">
+                  <button
+                    type="button"
+                    className="admin-action-btn"
+                    onClick={() => setPreviewItem(img)}
+                    title={isItemVideo(img) ? "Play video preview" : "View image preview"}
+                  >
+                    {isItemVideo(img) ? <Play size={16} /> : <Eye size={16} />}
+                    {isItemVideo(img) ? "Play" : "View"}
+                  </button>
                   <button
                     type="button"
                     className="admin-action-btn"
@@ -657,6 +683,72 @@ export function AdminClient() {
           ))}
         </ul>
       </div>
+
+      {previewItem && (
+        <div
+          className="admin-preview-modal-overlay"
+          onClick={() => setPreviewItem(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="admin-preview-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="admin-preview-modal-header">
+              <h3 className="admin-preview-modal-title">
+                {isItemVideo(previewItem) ? "Video Player" : "Image Preview"}
+              </h3>
+              <button
+                type="button"
+                className="admin-preview-modal-close"
+                onClick={() => setPreviewItem(null)}
+                aria-label="Close preview"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="admin-preview-modal-body">
+              {isItemVideo(previewItem) ? (
+                <video
+                  key={previewItem.url}
+                  controls
+                  autoPlay
+                  playsInline
+                  preload="auto"
+                  className="admin-preview-video"
+                >
+                  <source
+                    src={getVideoPlaybackUrl(
+                      previewItem.url,
+                      previewItem.publicId
+                    )}
+                    type="video/mp4"
+                  />
+                  <source
+                    src={getVideoPlaybackUrl(
+                      previewItem.url,
+                      previewItem.publicId
+                    )}
+                    type="video/webm"
+                  />
+                  Your browser does not support HTML5 video playback.
+                </video>
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={previewItem.url}
+                  alt=""
+                  className="admin-preview-img"
+                />
+              )}
+            </div>
+            <div className="admin-preview-modal-footer">
+              <code className="admin-filename">{previewItem.publicId}</code>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

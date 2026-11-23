@@ -199,9 +199,8 @@ function deliveryUrlFromFile(f) {
           : "video.mp4";
       return `https://ucarecdn.com/${uuid}/${vName}`;
     }
-    return nameSuffix
-      ? `https://ucarecdn.com/${uuid}/${nameSuffix}`
-      : `https://ucarecdn.com/${uuid}/`;
+    // Clean canonical Uploadcare image URL (no filename suffix to avoid 404s from encoding/mismatches)
+    return `https://ucarecdn.com/${uuid}/`;
   }
 
   const orig = f.originalFileUrl;
@@ -265,6 +264,14 @@ export async function listGalleryImages() {
       // Unfinished uploads can 404 on the CDN until processing completes
       if (f.isReady === false) {
         continue;
+      }
+      // Skip unstored temporary files older than 24 hours (they are purged by Uploadcare CDN)
+      if (!f.datetimeStored && f.datetimeUploaded) {
+        const uploadedTime = new Date(f.datetimeUploaded).getTime();
+        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+        if (!isNaN(uploadedTime) && uploadedTime < oneDayAgo) {
+          continue;
+        }
       }
       const w = f.contentInfo?.image?.width || f.contentInfo?.video?.video?.width;
       const h = f.contentInfo?.image?.height || f.contentInfo?.video?.video?.height;

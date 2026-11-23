@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { X, ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useGalleryImagePaths } from "@/hooks/useGalleryImagePaths";
-import { getVideoPlaybackUrl } from "@/lib/galleryIndex";
+import { getVideoPlaybackUrl, getVideoPosterUrl } from "@/lib/galleryIndex";
+import { GALLERY_ITEMS } from "@/data/galleryWorkImages";
 
 function checkIsVideo(item) {
   if (!item) return false;
@@ -193,12 +194,31 @@ export function GalleryView() {
                   style={{ cursor: "pointer" }}
                 >
                   {image.isVideo ? (
-                    <div className="gallery-video-wrapper">
+                    <div
+                      className="gallery-video-wrapper"
+                      onMouseEnter={(e) => {
+                        const v = e.currentTarget.querySelector("video");
+                        if (v) v.play().catch(() => {});
+                      }}
+                      onMouseLeave={(e) => {
+                        const v = e.currentTarget.querySelector("video");
+                        if (v) {
+                          v.pause();
+                          try { v.currentTime = 0.001; } catch {}
+                        }
+                      }}
+                    >
                       <video
-                        src={image.url}
+                        src={`${image.url}#t=0.001`}
+                        poster={getVideoPosterUrl(image.url, image.publicId) || undefined}
                         preload="metadata"
                         muted
                         playsInline
+                        onLoadedMetadata={(e) => {
+                          if (!getVideoPosterUrl(image.url, image.publicId)) {
+                            try { e.target.currentTime = 0.001; } catch {}
+                          }
+                        }}
                       />
                       <div className="gallery-video-badge" aria-hidden="true">
                         <Play size={20} fill="currentColor" />
@@ -210,6 +230,20 @@ export function GalleryView() {
                       src={image.url}
                       alt={t("galleryWorkPhotoAlt", { n: image.workIndex + 1 })}
                       loading="lazy"
+                      onError={(e) => {
+                        if (image.url.includes("ucarecdn.com")) {
+                          const m = image.url.match(/([0-9a-f-]{36})/i);
+                          if (m && e.currentTarget.src !== `https://ucarecdn.com/${m[1]}/`) {
+                            e.currentTarget.src = `https://ucarecdn.com/${m[1]}/`;
+                            return;
+                          }
+                        }
+                        const fallback =
+                          GALLERY_ITEMS[image.workIndex % GALLERY_ITEMS.length]?.url || "/pic1.jpg";
+                        if (e.currentTarget.src !== fallback) {
+                          e.currentTarget.src = fallback;
+                        }
+                      }}
                     />
                   )}
                 </div>
@@ -267,6 +301,15 @@ export function GalleryView() {
                 alt={t("galleryWorkPhotoAlt", {
                   n: grid[selectedIndex].workIndex + 1,
                 })}
+                onError={(e) => {
+                  const fallback =
+                    GALLERY_ITEMS[
+                      grid[selectedIndex].workIndex % GALLERY_ITEMS.length
+                    ]?.url || "/pic1.jpg";
+                  if (e.currentTarget.src !== fallback) {
+                    e.currentTarget.src = fallback;
+                  }
+                }}
               />
             )}
           </div>

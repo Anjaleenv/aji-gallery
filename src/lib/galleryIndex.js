@@ -25,6 +25,27 @@ export function getVideoPlaybackUrl(url, originalFilename) {
 }
 
 /**
+ * Generates a thumbnail/poster image URL for videos.
+ * For Uploadcare CDN, utilizes the on-the-fly videoframe endpoint:
+ *   https://ucarecdn.com/<uuid>/videoframe/00:00:01/
+ * @param {string} url
+ * @param {string} [publicId]
+ */
+export function getVideoPosterUrl(url, publicId) {
+  if (!url) return "";
+  const clean = String(url).trim();
+  if (clean.includes("ucarecdn.com")) {
+    const m = clean.match(/([0-9a-f-]{36})/i);
+    const uuid =
+      m ? m[1] : publicId && /^[0-9a-f-]{36}$/i.test(publicId) ? publicId : null;
+    if (uuid) {
+      return `https://ucarecdn.com/${uuid}/videoframe/00:00:01/-/resize/800x/`;
+    }
+  }
+  return "";
+}
+
+/**
  * @deprecated Use GET /api/gallery from the client. Kept for any legacy import.
  */
 export function filenamesToPublicPaths(filenames) {

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { uploadFile } from "@uploadcare/upload-client";
-import { getVideoPlaybackUrl } from "@/lib/galleryIndex";
+import { getVideoPlaybackUrl, getVideoPosterUrl } from "@/lib/galleryIndex";
 
 const ACCEPT_MEDIA =
   "image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm,video/quicktime";
@@ -619,11 +619,17 @@ export function AdminClient() {
                 {isItemVideo(img) ? (
                   <div className="admin-thumb-video-wrapper">
                     <video
-                      src={getVideoPlaybackUrl(img.url, img.publicId)}
+                      src={`${getVideoPlaybackUrl(img.url, img.publicId)}#t=0.001`}
+                      poster={getVideoPosterUrl(img.url, img.publicId) || undefined}
                       className="admin-thumb-img"
                       muted
                       playsInline
                       preload="metadata"
+                      onLoadedMetadata={(e) => {
+                        if (!getVideoPosterUrl(img.url, img.publicId)) {
+                          try { e.target.currentTime = 0.001; } catch {}
+                        }
+                      }}
                     />
                     <div className="admin-thumb-video-badge" aria-hidden="true">
                       <Play size={12} fill="currentColor" />

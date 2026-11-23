@@ -48,10 +48,7 @@ function itemClassName(index) {
 
 function VideoPreviewCard({ item, onClick }) {
   const videoRef = useRef(null);
-  const rawPlaybackUrl = getVideoPlaybackUrl(item.url, item.publicId);
-  const playbackUrl = rawPlaybackUrl.includes("#t=")
-    ? rawPlaybackUrl
-    : `${rawPlaybackUrl}#t=0.1`;
+  const playbackUrl = getVideoPlaybackUrl(item.url, item.publicId);
   const posterUrl = getVideoPosterUrl(item.url, item.publicId);
 
   const handleMouseEnter = () => {
@@ -110,7 +107,9 @@ function VideoPreviewCard({ item, onClick }) {
 }
 
 function ImagePreviewCard({ item, index, alt, onClick }) {
-  const [src, setSrc] = useState(() => normalizeImageUrl(item?.url || ""));
+  const [src, setSrc] = useState(() =>
+    normalizeImageUrl(item?.url || item?.publicId || "")
+  );
   const [attempt, setAttempt] = useState(0);
 
   const handleError = () => {
@@ -121,14 +120,12 @@ function ImagePreviewCard({ item, index, alt, onClick }) {
         setAttempt(1);
         return;
       }
-      // 2. Try bare Uploadcare UUID root if suffix failed
-      if (src.includes("ucarecdn.com")) {
-        const m = src.match(/([0-9a-f-]{36})/i);
-        if (m && src !== `https://ucarecdn.com/${m[1]}/`) {
-          setSrc(`https://ucarecdn.com/${m[1]}/`);
-          setAttempt(1);
-          return;
-        }
+      // 2. Try normalized canonical URL
+      const cleanUrl = normalizeImageUrl(item?.url || item?.publicId || "");
+      if (cleanUrl && src !== cleanUrl) {
+        setSrc(cleanUrl);
+        setAttempt(1);
+        return;
       }
     }
     // Final fallback to curated local project photos
@@ -303,17 +300,17 @@ export function HomeGalleryPreview() {
                   className="lightbox-video"
                 >
                   <source
-                    src={`${getVideoPlaybackUrl(
+                    src={getVideoPlaybackUrl(
                       preview[selectedIndex].url,
                       preview[selectedIndex].publicId
-                    )}#t=0.1`}
+                    )}
                     type="video/mp4"
                   />
                   <source
-                    src={`${getVideoPlaybackUrl(
+                    src={getVideoPlaybackUrl(
                       preview[selectedIndex].url,
                       preview[selectedIndex].publicId
-                    )}#t=0.1`}
+                    )}
                     type="video/webm"
                   />
                   Your browser does not support the video tag.
@@ -321,7 +318,9 @@ export function HomeGalleryPreview() {
               </div>
             ) : (
               <img
-                src={normalizeImageUrl(preview[selectedIndex].url)}
+                src={normalizeImageUrl(
+                  preview[selectedIndex].url || preview[selectedIndex].publicId
+                )}
                 alt={t("galleryWorkPhotoAlt", {
                   n: selectedIndex + 1,
                 })}

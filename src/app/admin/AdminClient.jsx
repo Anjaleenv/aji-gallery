@@ -622,7 +622,7 @@ export function AdminClient() {
                 {isItemVideo(img) ? (
                   <div className="admin-thumb-video-wrapper">
                     <video
-                      src={`${getVideoPlaybackUrl(img.url, img.publicId)}#t=0.1`}
+                      src={getVideoPlaybackUrl(img.url, img.publicId)}
                       poster={getVideoPosterUrl(img.url, img.publicId) || undefined}
                       className="admin-thumb-img"
                       muted
@@ -641,7 +641,7 @@ export function AdminClient() {
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src={normalizeImageUrl(img.url)}
+                    src={normalizeImageUrl(img.url || img.publicId)}
                     alt=""
                     width={80}
                     height={80}
@@ -720,7 +720,7 @@ export function AdminClient() {
             <div className="admin-preview-modal-body">
               {isItemVideo(previewItem) ? (
                 <video
-                  key={previewItem.url}
+                  key={getVideoPlaybackUrl(previewItem.url, previewItem.publicId)}
                   poster={
                     getVideoPosterUrl(
                       previewItem.url,
@@ -734,17 +734,17 @@ export function AdminClient() {
                   className="admin-preview-video"
                 >
                   <source
-                    src={`${getVideoPlaybackUrl(
+                    src={getVideoPlaybackUrl(
                       previewItem.url,
                       previewItem.publicId
-                    )}#t=0.1`}
+                    )}
                     type="video/mp4"
                   />
                   <source
-                    src={`${getVideoPlaybackUrl(
+                    src={getVideoPlaybackUrl(
                       previewItem.url,
                       previewItem.publicId
-                    )}#t=0.1`}
+                    )}
                     type="video/webm"
                   />
                   Your browser does not support HTML5 video playback.
@@ -752,7 +752,7 @@ export function AdminClient() {
               ) : (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={previewItem.url}
+                  src={normalizeImageUrl(previewItem.url || previewItem.publicId)}
                   alt=""
                   className="admin-preview-img"
                 />

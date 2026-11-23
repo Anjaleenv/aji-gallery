@@ -155,6 +155,19 @@ function extFromMime(mimeType) {
   return ".jpg";
 }
 
+export function getUploadcareCdnDomain() {
+  const envVal =
+    trimEnv("NEXT_PUBLIC_UPLOADCARE_CDN_BASE") ||
+    trimEnv("UPLOADCARE_CDN_BASE") ||
+    trimEnv("NEXT_PUBLIC_UPLOADCARE_CDN_DOMAIN") ||
+    trimEnv("UPLOADCARE_CDN_DOMAIN");
+  if (envVal) {
+    const cleaned = envVal.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    if (cleaned) return cleaned;
+  }
+  return "ucarecdn.com";
+}
+
 /**
  * Public CDN URL for a file uuid.
  * @param {string} [uuid]
@@ -163,12 +176,13 @@ function cdnUrlForUuid(uuid) {
   if (!uuid || typeof uuid !== "string") return "";
   const id = uuid.trim();
   if (!id) return "";
-  return `https://ucarecdn.com/${id}/`;
+  const domain = getUploadcareCdnDomain();
+  return `https://${domain}/${id}/`;
 }
 
 /**
- * Prefer the URL Uploadcare returns; otherwise build ucarecdn from uuid.
- * Ensures video files always have an extension (e.g. /video.mp4) for HTML5 video playback.
+ * Prefer clean canonical CDN URL from uuid and configured domain.
+ * Ensures video URLs are never appended with image transformations (/-/preview/, /-/resize/).
  * @param {import("@uploadcare/rest-client").FileInfo} f
  */
 function deliveryUrlFromFile(f) {
@@ -180,44 +194,48 @@ function deliveryUrlFromFile(f) {
   // Extract uuid
   let uuid = f.uuid;
   if (!uuid && typeof f.url === "string") {
-    const m = f.url.match(/([0-9a-f-]{36})/i);
+    const m = f.url.match(/([0-9a-fA-F-]{36})/);
     if (m) uuid = m[1];
   }
   if (!uuid && typeof f.originalFileUrl === "string") {
-    const m = f.originalFileUrl.match(/([0-9a-f-]{36})/i);
+    const m = f.originalFileUrl.match(/([0-9a-fA-F-]{36})/);
     if (m) uuid = m[1];
   }
 
-  const rawFilename = f.originalFilename || (isVideo ? "video.mp4" : "");
-  const nameSuffix = rawFilename ? `${encodeURIComponent(rawFilename)}` : "";
+  // Determine domain (default ucarecdn.com or custom *.ucarecd.net)
+  let domain = getUploadcareCdnDomain();
+  for (const candidate of [f.originalFileUrl, f.url]) {
+    if (typeof candidate === "string") {
+      const match = candidate.match(/^https?:\/\/([^/]+)/);
+      if (
+        match &&
+        (match[1].endsWith("ucarecdn.com") || match[1].endsWith("ucarecd.net"))
+      ) {
+        domain = match[1];
+        break;
+      }
+    }
+  }
 
   if (uuid) {
-    if (isVideo) {
-      const vName =
-        rawFilename && /\.(mp4|webm|mov)$/i.test(rawFilename)
-          ? encodeURIComponent(rawFilename)
-          : "video.mp4";
-      return `https://ucarecdn.com/${uuid}/${vName}`;
-    }
-    // Clean canonical Uploadcare image URL (no filename suffix to avoid 404s from encoding/mismatches)
-    return `https://ucarecdn.com/${uuid}/`;
+    // Both images and videos return clean root URL https://<domain>/<uuid>/
+    // Video player components add #t=0.1
+    // Image transformation paths (/-/preview/, /-/resize/) are never appended
+    return `https://${domain}/${uuid}/`;
   }
 
   const orig = f.originalFileUrl;
   if (typeof orig === "string" && /^https?:\/\//.test(orig)) {
-    if (isVideo && !/\.(mp4|webm|mov)(\?.*)?$/i.test(orig)) {
-      const base = orig.endsWith("/") ? orig : `${orig}/`;
-      return `${base}video.mp4`;
-    }
-    return orig;
+    const cleanOrig = orig.replace(/\/-\/[^/]+\/?/g, "/");
+    return cleanOrig.endsWith("/") ? cleanOrig : `${cleanOrig}/`;
   }
   const u = f.url;
-  if (typeof u === "string" && u.includes("ucarecdn.com")) {
-    if (isVideo && !/\.(mp4|webm|mov)(\?.*)?$/i.test(u)) {
-      const base = u.endsWith("/") ? u : `${u}/`;
-      return `${base}video.mp4`;
-    }
-    return u;
+  if (
+    typeof u === "string" &&
+    (u.includes("ucarecdn.com") || u.includes("ucarecd.net"))
+  ) {
+    const cleanU = u.replace(/\/-\/[^/]+\/?/g, "/");
+    return cleanU.endsWith("/") ? cleanU : `${cleanU}/`;
   }
 
   return "";

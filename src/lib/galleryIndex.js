@@ -1,29 +1,76 @@
 import { GALLERY_WORK_IMAGES } from "@/data/galleryWorkImages";
 
+const UUID_REGEX =
+  /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
+
+/**
+ * Resolves the Uploadcare CDN domain from environment variables,
+ * supporting default 'ucarecdn.com' and custom domains ('*.ucarecd.net').
+ */
+export function getUploadcareCdnDomain() {
+  const envVal =
+    (typeof process !== "undefined" && process?.env
+      ? process.env.NEXT_PUBLIC_UPLOADCARE_CDN_BASE ||
+        process.env.UPLOADCARE_CDN_BASE ||
+        process.env.NEXT_PUBLIC_UPLOADCARE_CDN_DOMAIN ||
+        process.env.UPLOADCARE_CDN_DOMAIN
+      : undefined) || "";
+  const cleaned = envVal.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  return cleaned || "ucarecdn.com";
+}
+
 /**
  * Normalizes video URLs so HTML5 video players can stream them properly.
- * For Uploadcare CDN, bare UUID URLs are given /video.mp4 or /filename.mp4
- * to ensure Content-Type: video/mp4, Range request (206) support, and browser playback.
+ * For Uploadcare CDN, bare UUIDs and URLs are normalized to clean
+ * `https://<cdn-domain>/<uuid>/#t=0.1` without any image transformation paths
+ * (such as /-/preview/ or /-/resize/) that cause 400/404 errors.
  * Strips accidental /public/ prefix so paths like /public/gallery/... resolve correctly.
+ * Appends `#t=0.1` so browsers render the first frame immediately.
  * @param {string} url
- * @param {string} [originalFilename]
+ * @param {string} [originalFilenameOrPublicId]
  */
-export function getVideoPlaybackUrl(url, originalFilename) {
+export function getVideoPlaybackUrl(url, originalFilenameOrPublicId) {
   if (!url) return "";
   let clean = String(url).trim();
   if (clean.startsWith("/public/")) {
     clean = clean.replace(/^\/public\//, "/");
   }
-  if (clean.includes("ucarecdn.com")) {
-    if (/\.(mp4|webm|mov)(\?.*)?$/i.test(clean)) {
-      return clean;
+
+  const isUploadcareDomain =
+    clean.includes("ucarecdn.com") || clean.includes("ucarecd.net");
+  const uuidMatch =
+    clean.match(UUID_REGEX) ||
+    (originalFilenameOrPublicId &&
+      String(originalFilenameOrPublicId).match(UUID_REGEX));
+
+  if (isUploadcareDomain || uuidMatch) {
+    let domain = getUploadcareCdnDomain();
+    const hostMatch = clean.match(/^https?:\/\/([^/]+)/);
+    if (
+      hostMatch &&
+      (hostMatch[1].endsWith("ucarecdn.com") ||
+        hostMatch[1].endsWith("ucarecd.net"))
+    ) {
+      domain = hostMatch[1];
     }
-    const filename =
-      originalFilename && /\.(mp4|webm|mov)$/i.test(originalFilename)
-        ? encodeURIComponent(originalFilename)
-        : "video.mp4";
-    const base = clean.endsWith("/") ? clean : `${clean}/`;
-    return `${base}${filename}`;
+
+    if (uuidMatch) {
+      const uuid = uuidMatch[0];
+      return `https://${domain}/${uuid}/#t=0.1`;
+    }
+
+    // Strip any image transformation paths (/-/preview/, /-/resize/, etc.)
+    let stripped = clean.replace(/\/-\/[^/]+\/?/g, "/");
+    if (!stripped.includes("#t=")) {
+      stripped = stripped.endsWith("/")
+        ? `${stripped}#t=0.1`
+        : `${stripped}/#t=0.1`;
+    }
+    return stripped;
+  }
+
+  if (!clean.includes("#t=")) {
+    return `${clean}#t=0.1`;
   }
   return clean;
 }
@@ -32,7 +79,9 @@ export function getVideoPlaybackUrl(url, originalFilename) {
  * Generates a thumbnail/poster image URL for videos.
  * - For Cloudinary: automatically derives the poster by replacing the video
  *   extension (.mp4, .mov, .webm) with .jpg and inserting /so_0/ to capture frame 0.
- * - For Uploadcare: utilizes the on-the-fly videoframe endpoint.
+ * - For Supabase: replaces video extension with .jpg.
+ * - For Uploadcare: avoids appending non-existent /videoframe/ or /-/ image transformation
+ *   paths that fail on free/standard plans; HTML5 video renders frame 0.1 via preload="metadata".
  * @param {string} url
  * @param {string} [publicId]
  */
@@ -61,22 +110,13 @@ export function getVideoPosterUrl(url, publicId) {
     return clean.replace(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i, ".jpg$2");
   }
 
-  // Uploadcare CDN video poster derivation
-  if (clean.includes("ucarecdn.com")) {
-    const m = clean.match(/([0-9a-f-]{36})/i);
-    const uuid =
-      m ? m[1] : publicId && /^[0-9a-f-]{36}$/i.test(publicId) ? publicId : null;
-    if (uuid) {
-      return `https://ucarecdn.com/${uuid}/videoframe/00:00:01/-/resize/800x/`;
-    }
-  }
-
   return "";
 }
 
 /**
- * Normalizes gallery image URLs, stripping accidental /public/ prefixes
- * and cleaning fragile suffixes to ensure images always load properly.
+ * Normalizes gallery image URLs, resolving bare UUIDs, stripping accidental /public/
+ * prefixes, removing fragile /-/ transformations from raw endpoints, and ensuring
+ * canonical CDN URLs for both ucarecdn.com and custom *.ucarecd.net domains.
  * @param {string} url
  */
 export function normalizeImageUrl(url) {
@@ -85,13 +125,32 @@ export function normalizeImageUrl(url) {
   if (clean.startsWith("/public/")) {
     clean = clean.replace(/^\/public\//, "/");
   }
-  // Canonical Uploadcare image endpoint
-  if (clean.includes("ucarecdn.com")) {
-    const m = clean.match(/ucarecdn\.com\/([0-9a-f-]{36})/i);
-    if (m && !clean.includes("/-/")) {
-      return `https://ucarecdn.com/${m[1]}/`;
+
+  // Bare UUID (e.g. 3a98f495-74ae-49c7-9250-183edc6982fc)
+  if (UUID_REGEX.test(clean) && !clean.includes("/")) {
+    const domain = getUploadcareCdnDomain();
+    return `https://${domain}/${clean}/`;
+  }
+
+  const isUploadcareDomain =
+    clean.includes("ucarecdn.com") || clean.includes("ucarecd.net");
+
+  if (isUploadcareDomain) {
+    let domain = getUploadcareCdnDomain();
+    const hostMatch = clean.match(/^https?:\/\/([^/]+)/);
+    if (
+      hostMatch &&
+      (hostMatch[1].endsWith("ucarecdn.com") ||
+        hostMatch[1].endsWith("ucarecd.net"))
+    ) {
+      domain = hostMatch[1];
+    }
+    const uuidMatch = clean.match(UUID_REGEX);
+    if (uuidMatch) {
+      return `https://${domain}/${uuidMatch[0]}/`;
     }
   }
+
   return clean;
 }
 

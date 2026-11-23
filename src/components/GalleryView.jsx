@@ -39,11 +39,9 @@ export function GalleryView() {
   const grid = useMemo(() => {
     const list = images.map((item, i) => {
       const isVideo = checkIsVideo(item);
-      const rawUrl = isVideo
+      const url = isVideo
         ? getVideoPlaybackUrl(item.url, item.publicId)
-        : normalizeImageUrl(item.url);
-      const url =
-        isVideo && !rawUrl.includes("#t=") ? `${rawUrl}#t=0.1` : rawUrl;
+        : normalizeImageUrl(item.url || item.publicId);
       return {
         id: item.publicId || item.id || String(i),
         publicId: item.publicId,
@@ -250,12 +248,12 @@ export function GalleryView() {
                           e.currentTarget.src = current.replace("/public/", "/");
                           return;
                         }
-                        if (image.url.includes("ucarecdn.com")) {
-                          const m = image.url.match(/([0-9a-f-]{36})/i);
-                          if (m && current !== `https://ucarecdn.com/${m[1]}/`) {
-                            e.currentTarget.src = `https://ucarecdn.com/${m[1]}/`;
-                            return;
-                          }
+                        const cleanItemUrl = normalizeImageUrl(
+                          image.url || image.publicId
+                        );
+                        if (cleanItemUrl && current !== cleanItemUrl) {
+                          e.currentTarget.src = cleanItemUrl;
+                          return;
                         }
                         const fallback =
                           GALLERY_ITEMS[index % GALLERY_ITEMS.length]?.url ||
@@ -317,19 +315,11 @@ export function GalleryView() {
                   className="lightbox-video"
                 >
                   <source
-                    src={
-                      grid[selectedIndex].url.includes("#t=")
-                        ? grid[selectedIndex].url
-                        : `${grid[selectedIndex].url}#t=0.1`
-                    }
+                    src={grid[selectedIndex].url}
                     type="video/mp4"
                   />
                   <source
-                    src={
-                      grid[selectedIndex].url.includes("#t=")
-                        ? grid[selectedIndex].url
-                        : `${grid[selectedIndex].url}#t=0.1`
-                    }
+                    src={grid[selectedIndex].url}
                     type="video/webm"
                   />
                   Your browser does not support the video tag.
@@ -337,7 +327,9 @@ export function GalleryView() {
               </div>
             ) : (
               <img
-                src={normalizeImageUrl(grid[selectedIndex].url)}
+                src={normalizeImageUrl(
+                  grid[selectedIndex].url || grid[selectedIndex].publicId
+                )}
                 alt={t("galleryWorkPhotoAlt", {
                   n:
                     filter === "all"

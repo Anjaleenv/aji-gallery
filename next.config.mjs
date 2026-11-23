@@ -39,6 +39,21 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "ucarecd.net",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.ucarecd.net",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "**.ucarecd.net",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "api.uploadcare.com",
         pathname: "/**",
       },

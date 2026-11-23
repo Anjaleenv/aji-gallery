@@ -4,7 +4,11 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { X, ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useGalleryImagePaths } from "@/hooks/useGalleryImagePaths";
-import { getVideoPlaybackUrl, getVideoPosterUrl } from "@/lib/galleryIndex";
+import {
+  getVideoPlaybackUrl,
+  getVideoPosterUrl,
+  normalizeImageUrl,
+} from "@/lib/galleryIndex";
 import { GALLERY_ITEMS } from "@/data/galleryWorkImages";
 
 function checkIsVideo(item) {
@@ -35,11 +39,13 @@ export function GalleryView() {
   const grid = useMemo(() => {
     const list = images.map((item, i) => {
       const isVideo = checkIsVideo(item);
-      const url = isVideo
+      const rawUrl = isVideo
         ? getVideoPlaybackUrl(item.url, item.publicId)
-        : item.url;
+        : normalizeImageUrl(item.url);
+      const url =
+        isVideo && !rawUrl.includes("#t=") ? `${rawUrl}#t=0.1` : rawUrl;
       return {
-        id: item.publicId,
+        id: item.publicId || item.id || String(i),
         publicId: item.publicId,
         url,
         workIndex: i,
@@ -204,19 +210,25 @@ export function GalleryView() {
                         const v = e.currentTarget.querySelector("video");
                         if (v) {
                           v.pause();
-                          try { v.currentTime = 0.001; } catch {}
+                          try {
+                            v.currentTime = 0.1;
+                          } catch {}
                         }
                       }}
                     >
                       <video
-                        src={`${image.url}#t=0.001`}
-                        poster={getVideoPosterUrl(image.url, image.publicId) || undefined}
+                        src={image.url}
+                        poster={
+                          getVideoPosterUrl(image.url, image.publicId) || undefined
+                        }
                         preload="metadata"
                         muted
                         playsInline
                         onLoadedMetadata={(e) => {
                           if (!getVideoPosterUrl(image.url, image.publicId)) {
-                            try { e.target.currentTime = 0.001; } catch {}
+                            try {
+                              e.target.currentTime = 0.1;
+                            } catch {}
                           }
                         }}
                       />
@@ -228,20 +240,28 @@ export function GalleryView() {
                     /* eslint-disable-next-line @next/next/no-img-element -- dynamic gallery + lightbox src */
                     <img
                       src={image.url}
-                      alt={t("galleryWorkPhotoAlt", { n: image.workIndex + 1 })}
+                      alt={t("galleryWorkPhotoAlt", {
+                        n: filter === "all" ? image.workIndex + 1 : index + 1,
+                      })}
                       loading="lazy"
                       onError={(e) => {
+                        const current = e.currentTarget.src;
+                        if (current.includes("/public/")) {
+                          e.currentTarget.src = current.replace("/public/", "/");
+                          return;
+                        }
                         if (image.url.includes("ucarecdn.com")) {
                           const m = image.url.match(/([0-9a-f-]{36})/i);
-                          if (m && e.currentTarget.src !== `https://ucarecdn.com/${m[1]}/`) {
+                          if (m && current !== `https://ucarecdn.com/${m[1]}/`) {
                             e.currentTarget.src = `https://ucarecdn.com/${m[1]}/`;
                             return;
                           }
                         }
                         const fallback =
-                          GALLERY_ITEMS[image.workIndex % GALLERY_ITEMS.length]?.url || "/pic1.jpg";
+                          GALLERY_ITEMS[index % GALLERY_ITEMS.length]?.url ||
+                          "/pic1.jpg";
                         if (e.currentTarget.src !== fallback) {
-                          e.currentTarget.src = fallback;
+                          e.currentTarget.src = fallback.replace(/^\/public\//, "/");
                         }
                       }}
                     />
@@ -287,19 +307,36 @@ export function GalleryView() {
                   controls
                   playsInline
                   autoPlay
-                  preload="auto"
+                  preload="metadata"
                   className="lightbox-video"
                 >
-                  <source src={grid[selectedIndex].url} type="video/mp4" />
-                  <source src={grid[selectedIndex].url} type="video/webm" />
+                  <source
+                    src={
+                      grid[selectedIndex].url.includes("#t=")
+                        ? grid[selectedIndex].url
+                        : `${grid[selectedIndex].url}#t=0.1`
+                    }
+                    type="video/mp4"
+                  />
+                  <source
+                    src={
+                      grid[selectedIndex].url.includes("#t=")
+                        ? grid[selectedIndex].url
+                        : `${grid[selectedIndex].url}#t=0.1`
+                    }
+                    type="video/webm"
+                  />
                   Your browser does not support the video tag.
                 </video>
               </div>
             ) : (
               <img
-                src={grid[selectedIndex].url}
+                src={normalizeImageUrl(grid[selectedIndex].url)}
                 alt={t("galleryWorkPhotoAlt", {
-                  n: grid[selectedIndex].workIndex + 1,
+                  n:
+                    filter === "all"
+                      ? grid[selectedIndex].workIndex + 1
+                      : selectedIndex + 1,
                 })}
                 onError={(e) => {
                   const fallback =
@@ -307,7 +344,7 @@ export function GalleryView() {
                       grid[selectedIndex].workIndex % GALLERY_ITEMS.length
                     ]?.url || "/pic1.jpg";
                   if (e.currentTarget.src !== fallback) {
-                    e.currentTarget.src = fallback;
+                    e.currentTarget.src = fallback.replace(/^\/public\//, "/");
                   }
                 }}
               />

@@ -619,7 +619,7 @@ export function AdminClient() {
                 {isItemVideo(img) ? (
                   <div className="admin-thumb-video-wrapper">
                     <video
-                      src={`${getVideoPlaybackUrl(img.url, img.publicId)}#t=0.001`}
+                      src={`${getVideoPlaybackUrl(img.url, img.publicId)}#t=0.1`}
                       poster={getVideoPosterUrl(img.url, img.publicId) || undefined}
                       className="admin-thumb-img"
                       muted
@@ -627,7 +627,7 @@ export function AdminClient() {
                       preload="metadata"
                       onLoadedMetadata={(e) => {
                         if (!getVideoPosterUrl(img.url, img.publicId)) {
-                          try { e.target.currentTime = 0.001; } catch {}
+                          try { e.target.currentTime = 0.1; } catch {}
                         }
                       }}
                     />
@@ -721,21 +721,21 @@ export function AdminClient() {
                   controls
                   autoPlay
                   playsInline
-                  preload="auto"
+                  preload="metadata"
                   className="admin-preview-video"
                 >
                   <source
-                    src={getVideoPlaybackUrl(
+                    src={`${getVideoPlaybackUrl(
                       previewItem.url,
                       previewItem.publicId
-                    )}
+                    )}#t=0.1`}
                     type="video/mp4"
                   />
                   <source
-                    src={getVideoPlaybackUrl(
+                    src={`${getVideoPlaybackUrl(
                       previewItem.url,
                       previewItem.publicId
-                    )}
+                    )}#t=0.1`}
                     type="video/webm"
                   />
                   Your browser does not support HTML5 video playback.

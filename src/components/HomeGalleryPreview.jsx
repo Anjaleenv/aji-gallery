@@ -11,6 +11,7 @@ import { useGalleryImagePaths } from "@/hooks/useGalleryImagePaths";
 import {
   getVideoPlaybackUrl,
   getVideoPosterUrl,
+  normalizeImageUrl,
 } from "@/lib/galleryIndex";
 
 function checkIsVideo(item) {
@@ -47,7 +48,10 @@ function itemClassName(index) {
 
 function VideoPreviewCard({ item, onClick }) {
   const videoRef = useRef(null);
-  const playbackUrl = getVideoPlaybackUrl(item.url, item.publicId);
+  const rawPlaybackUrl = getVideoPlaybackUrl(item.url, item.publicId);
+  const playbackUrl = rawPlaybackUrl.includes("#t=")
+    ? rawPlaybackUrl
+    : `${rawPlaybackUrl}#t=0.1`;
   const posterUrl = getVideoPosterUrl(item.url, item.publicId);
 
   const handleMouseEnter = () => {
@@ -60,7 +64,7 @@ function VideoPreviewCard({ item, onClick }) {
     if (videoRef.current) {
       videoRef.current.pause();
       try {
-        videoRef.current.currentTime = 0.001;
+        videoRef.current.currentTime = 0.1;
       } catch {}
     }
   };
@@ -84,7 +88,7 @@ function VideoPreviewCard({ item, onClick }) {
     >
       <video
         ref={videoRef}
-        src={`${playbackUrl}#t=0.001`}
+        src={playbackUrl}
         poster={posterUrl || undefined}
         muted
         playsInline
@@ -92,7 +96,7 @@ function VideoPreviewCard({ item, onClick }) {
         onLoadedMetadata={(e) => {
           if (!posterUrl) {
             try {
-              e.target.currentTime = 0.001;
+              e.target.currentTime = 0.1;
             } catch {}
           }
         }}
@@ -106,22 +110,31 @@ function VideoPreviewCard({ item, onClick }) {
 }
 
 function ImagePreviewCard({ item, index, alt, onClick }) {
-  const [src, setSrc] = useState(item.url);
+  const [src, setSrc] = useState(() => normalizeImageUrl(item?.url || ""));
   const [attempt, setAttempt] = useState(0);
 
   const handleError = () => {
-    if (attempt === 0 && src.includes("ucarecdn.com")) {
-      const m = src.match(/([0-9a-f-]{36})/i);
-      if (m && src !== `https://ucarecdn.com/${m[1]}/`) {
-        setSrc(`https://ucarecdn.com/${m[1]}/`);
+    if (attempt === 0) {
+      // 1. Try stripping accidental /public/ prefix
+      if (src.includes("/public/")) {
+        setSrc(src.replace("/public/", "/"));
         setAttempt(1);
         return;
+      }
+      // 2. Try bare Uploadcare UUID root if suffix failed
+      if (src.includes("ucarecdn.com")) {
+        const m = src.match(/([0-9a-f-]{36})/i);
+        if (m && src !== `https://ucarecdn.com/${m[1]}/`) {
+          setSrc(`https://ucarecdn.com/${m[1]}/`);
+          setAttempt(1);
+          return;
+        }
       }
     }
     // Final fallback to curated local project photos
     const fallback =
       GALLERY_ITEMS[index % GALLERY_ITEMS.length]?.url || "/pic1.jpg";
-    setSrc(fallback);
+    setSrc(fallback.replace(/^\/public\//, "/"));
     setAttempt(2);
   };
 
@@ -280,21 +293,21 @@ export function HomeGalleryPreview() {
                   controls
                   playsInline
                   autoPlay
-                  preload="auto"
+                  preload="metadata"
                   className="lightbox-video"
                 >
                   <source
-                    src={getVideoPlaybackUrl(
+                    src={`${getVideoPlaybackUrl(
                       preview[selectedIndex].url,
                       preview[selectedIndex].publicId
-                    )}
+                    )}#t=0.1`}
                     type="video/mp4"
                   />
                   <source
-                    src={getVideoPlaybackUrl(
+                    src={`${getVideoPlaybackUrl(
                       preview[selectedIndex].url,
                       preview[selectedIndex].publicId
-                    )}
+                    )}#t=0.1`}
                     type="video/webm"
                   />
                   Your browser does not support the video tag.
@@ -302,7 +315,7 @@ export function HomeGalleryPreview() {
               </div>
             ) : (
               <img
-                src={preview[selectedIndex].url}
+                src={normalizeImageUrl(preview[selectedIndex].url)}
                 alt={t("galleryWorkPhotoAlt", {
                   n: selectedIndex + 1,
                 })}
@@ -311,7 +324,7 @@ export function HomeGalleryPreview() {
                     GALLERY_ITEMS[selectedIndex % GALLERY_ITEMS.length]?.url ||
                     "/pic1.jpg";
                   if (e.target.src !== fallback) {
-                    e.target.src = fallback;
+                    e.target.src = fallback.replace(/^\/public\//, "/");
                   }
                 }}
               />
